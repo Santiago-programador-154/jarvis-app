@@ -19,7 +19,7 @@ let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v2')) || {
     "história": ["Revolução Francesa (1789): Fim do absolutismo."]
 };
 
-// URL do seu servidor Python (Mude para o link do Render quando fizermos o deploy)
+// URL do seu servidor Python no Render
 const BACKEND_URL = "https://jarvis-backend-pm7w.onrender.com"; 
 
 // 3. ENGENHARIA DE UPLOAD DE ARQUIVOS (PDF E IMAGENS)
@@ -95,7 +95,7 @@ function falar(texto) {
     }
 }
 
-// 5. ENVIO DE MENSAGENS HÍBRIDO (LOCAL + NUVEM)
+// 5. ENVIO DE MENSAGENS HÍBRIDO (LOCAL + NUVEM) - CORRIGIDO
 function enviarMensagem() {
     let input = document.getElementById('userInput');
     let chatBox = document.getElementById('chatBox');
@@ -121,7 +121,7 @@ function enviarMensagem() {
             falar(respostaFinal);
         }, 500);
     } else {
-        // Se NÃO achou nas regras offline, aciona o cérebro humano em Python na Nuvem
+        // Se NÃO achou nas regras offline, aciona o cérebro em Python na Nuvem
         chatBox.innerHTML += `<div class="balao jarvis-msg de-nuvem" id="tempMsg"><span class="sender-name">JARVIS</span><i>Pensando...</i></div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -132,24 +132,31 @@ function enviarMensagem() {
         })
         .then(res => res.json())
         .then(data => {
-            document.getElementById('tempMsg').removeAttribute('id');
-            let balaos = chatBox.getElementsByClassName('de-nuvem');
-            let ultimoBalao = balaos[balaos.length - 1];
-            
-            let respostaAnatomica = data.resposta || "Não consegui formular uma resposta.";
-            ultimoBalao.innerHTML = `<span class="sender-name">JARVIS</span>${respostaAnatomica}`;
-            chatBox.scrollTop = chatBox.scrollHeight;
-            falar(respostaAnatomica);
+            // Pega o balão do pensamento diretamente pelo ID
+            let balaoPensamento = document.getElementById('tempMsg');
+            if (balaoPensamento) {
+                let respostaAnatomica = data.resposta || "Não consegui formular uma resposta.";
+                
+                // Atualiza o texto e remove o ID para ele virar um balão comum
+                balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${respostaAnatomica}`;
+                balaoPensamento.removeAttribute('id');
+                
+                chatBox.scrollTop = chatBox.scrollHeight;
+                falar(respostaAnatomica);
+            }
         })
         .catch(err => {
-            // Se o servidor Python estiver desligado, ele responde usando o fallback offline
-            document.getElementById('tempMsg').removeAttribute('id');
-            let balaos = chatBox.getElementsByClassName('de-nuvem');
-            let ultimoBalao = balaos[balaos.length - 1];
-            
-            let erroMensagem = "Estou sem conexão com meu módulo central em Python na nuvem. Use comandos puramente matemáticos ou locais por enquanto.";
-            ultimoBalao.innerHTML = `<span class="sender-name">JARVIS</span>${erroMensagem}`;
-            falar(erroMensagem);
+            // Se o servidor der erro ou estiver fora, muda o texto do balão de pensamento
+            let balaoPensamento = document.getElementById('tempMsg');
+            if (balaoPensamento) {
+                let erroMensagem = "Estou sem conexão com meu módulo central em Python na nuvem. Use comandos locais por enquanto.";
+                
+                balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${erroMensagem}`;
+                balaoPensamento.removeAttribute('id');
+                
+                chatBox.scrollTop = chatBox.scrollHeight;
+                falar(erroMensagem);
+            }
         });
     }
 }
