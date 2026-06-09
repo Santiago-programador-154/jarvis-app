@@ -20,7 +20,7 @@ let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v2')) || {
 };
 
 // URL do seu servidor Python (Mude para o link do Render quando fizermos o deploy)
-const BACKEND_URL = "http://localhost:5000"; 
+const BACKEND_URL = "https://jarvis-backend-pm7w.onrender.com"; 
 
 // 3. ENGENHARIA DE UPLOAD DE ARQUIVOS (PDF E IMAGENS)
 function dispararUpload() {
