@@ -1,0 +1,171 @@
+/* style.css */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #060b13;
+    color: #e2e8f0;
+    font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-image: radial-gradient(rgba(0, 240, 255, 0.05) 2px, transparent 0);
+    background-size: 30px 30px;
+}
+
+/* Barra do Topo */
+.header-status {
+    background: #0b1424;
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid #005577;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.header-status h2 {
+    font-size: 1.2rem;
+    color: #00f0ff;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+}
+
+.status-online {
+    font-size: 0.75rem;
+    color: #00ff66;
+    margin-top: 3px;
+}
+
+/* Área de Conversa */
+.chat-container {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Balões de Conversa Estilo Zap */
+.balao {
+    padding: 10px 14px;
+    border-radius: 14px;
+    max-width: 75%;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.user-msg {
+    background: #005c4b;
+    color: #ffffff;
+    align-self: flex-end;
+    border-top-right-radius: 0px;
+}
+
+.jarvis-msg {
+    background: #202c33;
+    color: #00f0ff;
+    align-self: flex-start;
+    border-top-left-radius: 0px;
+    border-left: 3px solid #00f0ff;
+}
+
+.sender-name {
+    font-size: 0.75rem;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 4px;
+    color: #38bdf8;
+}
+
+.user-msg .sender-name {
+    color: #4ade80;
+}
+
+/* Barra de Digitação Inferior */
+.input-container {
+    background: #111b21;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid #223344;
+}
+
+.input-wrapper {
+    flex: 1;
+    background: #2a3942;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    padding: 5px 10px 5px 15px;
+    gap: 10px;
+}
+
+input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 10px 0;
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+}
+
+/* Botão de Ícone Sutil (Clipe) */
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: #8696a0;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.btn-icon:active {
+    color: #00f0ff;
+}
+
+/* Botões Redondos */
+.btn-round {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: #00a884;
+    border: none;
+    color: #ffffff;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    transition: transform 0.1s;
+}
+
+.btn-round:active {
+    transform: scale(0.95);
+}
+
+#micBtn {
+    background: #005577;
+}
+
+#micBtn.gravando {
+    background: #ff3333;
+    animation: pulsar 1.5s infinite;
+}
+
+@keyframes pulsar {
+    0   { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.7); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 51, 51, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); }
+}
