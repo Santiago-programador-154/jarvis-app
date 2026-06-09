@@ -19,8 +19,8 @@ let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v2')) || {
     "história": ["Revolução Francesa (1789): Fim do absolutismo."]
 };
 
-// URL do seu servidor Python no Render
-const BACKEND_URL = "https://jarvis-backend-pm7w.onrender.com"; 
+// URL CORRIGIDA COM HTTPS E BARRA NO FINAL (Evita o erro de Mixed Content / CORS)
+const BACKEND_URL = "https://jarvis-backend-pm7w.onrender.com/"; 
 
 // 3. ENGENHARIA DE UPLOAD DE ARQUIVOS (PDF E IMAGENS)
 function dispararUpload() {
@@ -95,7 +95,7 @@ function falar(texto) {
     }
 }
 
-// 5. ENVIO DE MENSAGENS HÍBRIDO (LOCAL + NUVEM) - CORRIGIDO
+// 5. ENVIO DE MENSAGENS HÍBRIDO (LOCAL + NUVEM) - OTIMIZADO
 function enviarMensagem() {
     let input = document.getElementById('userInput');
     let chatBox = document.getElementById('chatBox');
@@ -125,7 +125,7 @@ function enviarMensagem() {
         chatBox.innerHTML += `<div class="balao jarvis-msg de-nuvem" id="tempMsg"><span class="sender-name">JARVIS</span><i>Pensando...</i></div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
 
-        fetch(`${BACKEND_URL}/api/comando`, {
+        fetch(`${BACKEND_URL}api/comando`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ comando: texto })
