@@ -1,7 +1,7 @@
 // script.js
 
 if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 }
 
 let pdfTextoCompleto = "";
@@ -120,7 +120,7 @@ function enviarMensagem() {
     if (respostaOffline !== null) {
         exibirRespostaLocal(respostaOffline, chatBox);
     } else {
-        // Separação limpa do comando com divisor seguro
+        // Envia o comando estruturado isolando o texto das memórias
         let comandoFormatado = `Comando do Usuário: ${texto}\n\n---MEMORIAS_LOCAIS---\n${JSON.stringify(dbMemoriaLocal)}`;
         acionarCerebroNuvem(comandoFormatado, chatBox);
     }
