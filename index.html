@@ -3,26 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>JARVIS - Assistente Inteligente</title>
+    <title>JARVIS - Assistente Total</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="manifest" href="manifest.json">
 </head>
 <body class="dark-mode">
     <div class="app-container">
-        <!-- Sidebar (menu principal) -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="logo-area">
-                    <i class="fas fa-microchip"></i>
-                    <h2>JARVIS</h2>
-                </div>
+                <div class="logo-area"><i class="fas fa-microchip"></i><h2>JARVIS</h2></div>
                 <button class="close-sidebar" id="closeSidebar"><i class="fas fa-times"></i></button>
             </div>
-            <div class="status-card">
-                <div class="status-led online"></div>
-                <span>CORE TOTAL ATIVO</span>
-            </div>
+            <div class="status-card"><div class="status-led online"></div><span>CORE TOTAL ATIVO</span></div>
             <div class="sidebar-section">
                 <h3><i class="fas fa-database"></i> Dados</h3>
                 <button class="btn-clear" id="exportBackupBtn"><i class="fas fa-download"></i> Backup completo</button>
@@ -40,14 +34,10 @@
             </div>
             <div class="sidebar-section">
                 <h3><i class="fas fa-info-circle"></i> Sobre</h3>
-                <p class="sidebar-text">Versão 4.0 - Mais de 80 comandos integrados.<br>Projeto pessoal - gratuito.</p>
+                <p class="sidebar-text">Versão 5.0 - Mais de 100 comandos integrados.<br>Projeto pessoal - gratuito.</p>
             </div>
         </aside>
 
-        <!-- Overlay para sidebar mobile -->
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-        <!-- Área principal -->
         <main class="main-chat">
             <div class="chat-header">
                 <button id="menuToggle" class="menu-btn"><i class="fas fa-bars"></i></button>
@@ -58,7 +48,6 @@
                 </div>
             </div>
 
-            <!-- Abas de categorias -->
             <div class="tabs-container">
                 <button class="tab-btn active" data-tab="chat">💬 Chat</button>
                 <button class="tab-btn" data-tab="commands">⚡ Comandos</button>
@@ -66,14 +55,13 @@
                 <button class="tab-btn" data-tab="stats">📊 Estatísticas</button>
             </div>
 
-            <!-- Conteúdo da aba CHAT -->
             <div class="tab-content active" id="tab-chat">
                 <div class="chat-container" id="chatBox">
                     <div class="balao jarvis-msg">
                         <div class="avatar"><i class="fas fa-robot"></i></div>
                         <div class="message-content">
                             <span class="sender-name">JARVIS</span>
-                            <p>✅ Interface renovada! Agora com abas e comandos organizados. O que deseja fazer?</p>
+                            <p>✅ Interface renovada! Agora com mais de 100 comandos. O que deseja fazer?</p>
                         </div>
                     </div>
                 </div>
@@ -90,67 +78,20 @@
                 <div class="typing-indicator" id="typingIndicator">JARVIS está digitando<span>.</span><span>.</span><span>.</span></div>
             </div>
 
-            <!-- Conteúdo da aba COMANDOS -->
             <div class="tab-content" id="tab-commands">
                 <div class="commands-grid">
-                    <div class="cmd-category">
-                        <h3><i class="fas fa-file-pdf"></i> PDF e Documentos</h3>
-                        <div class="cmd-buttons">
-                            <button onclick="inserirComando('continue')">continue</button>
-                            <button onclick="inserirComando('leia')">leia</button>
-                            <button onclick="inserirComando('próxima página')">próx página</button>
-                            <button onclick="inserirComando('criar pdf sobre [tema]')">criar pdf</button>
-                            <button onclick="inserirComando('ler tudo em voz alta')">ler tudo voz</button>
-                        </div>
-                    </div>
-                    <div class="cmd-category">
-                        <h3><i class="fas fa-image"></i> Imagens e Áudio</h3>
-                        <div class="cmd-buttons">
-                            <button onclick="inserirComando('crie uma imagem de [descrição]')">gerar imagem</button>
-                            <button onclick="inserirComando('criar audio sobre [tema]')">gerar áudio</button>
-                            <button onclick="inserirComando('criar slides sobre [tema]')">criar slides</button>
-                        </div>
-                    </div>
-                    <div class="cmd-category">
-                        <h3><i class="fas fa-chart-line"></i> Finanças e Matemática</h3>
-                        <div class="cmd-buttons">
-                            <button onclick="inserirComando('adicionar gasto [cat] [valor]')">add gasto</button>
-                            <button onclick="inserirComando('resumo gastos')">resumo</button>
-                            <button onclick="inserirComando('juros compostos capital 1000 taxa 5 meses 12')">juros</button>
-                            <button onclick="inserirComando('gorjeta conta 100 taxa 10')">gorjeta</button>
-                            <button onclick="inserirComando('cambio 100 USD para BRL')">câmbio</button>
-                        </div>
-                    </div>
-                    <div class="cmd-category">
-                        <h3><i class="fas fa-globe"></i> Utilidades</h3>
-                        <div class="cmd-buttons">
-                            <button onclick="inserirComando('clima em São Paulo')">clima</button>
-                            <button onclick="inserirComando('previsão São Paulo')">previsão</button>
-                            <button onclick="inserirComando('últimas notícias')">notícias</button>
-                            <button onclick="inserirComando('converter 10 km para milhas')">converter</button>
-                            <button onclick="inserirComando('gerar senha 12')">senha</button>
-                        </div>
-                    </div>
-                    <div class="cmd-category">
-                        <h3><i class="fas fa-code"></i> Programação</h3>
-                        <div class="cmd-buttons">
-                            <button onclick="inserirComando('rode python: print(\'oi\')')">Python</button>
-                            <button onclick="inserirComando('rode js: console.log(\'oi\')')">JavaScript</button>
-                        </div>
-                    </div>
-                    <div class="cmd-category">
-                        <h3><i class="fas fa-heart"></i> Saúde e Estudos</h3>
-                        <div class="cmd-buttons">
-                            <button onclick="inserirComando('imc peso 70 altura 1.75')">IMC</button>
-                            <button onclick="inserirComando('pomodoro 25')">pomodoro</button>
-                            <button onclick="inserirComando('cronograma de estudos')">cronograma</button>
-                            <button onclick="inserirComando('tabuada do 7')">tabuada</button>
-                        </div>
-                    </div>
+                    <div class="cmd-category"><h3><i class="fas fa-file-pdf"></i> PDF</h3><div class="cmd-buttons"><button onclick="inserirComando('continue')">continue</button><button onclick="inserirComando('leia')">leia</button><button onclick="inserirComando('próxima página')">próx página</button><button onclick="inserirComando('criar pdf sobre [tema]')">criar pdf</button><button onclick="inserirComando('ler tudo em voz alta')">ler tudo voz</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-image"></i> Imagem/Áudio</h3><div class="cmd-buttons"><button onclick="inserirComando('crie uma imagem de [descrição]')">gerar imagem</button><button onclick="inserirComando('criar audio sobre [tema]')">gerar áudio</button><button onclick="inserirComando('criar slides sobre [tema]')">criar slides</button><button onclick="inserirComando('gravar nota')">gravar nota</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-chart-line"></i> Finanças</h3><div class="cmd-buttons"><button onclick="inserirComando('adicionar gasto [cat] [valor]')">add gasto</button><button onclick="inserirComando('resumo gastos')">resumo</button><button onclick="inserirComando('relatório de gastos')">relatório gráfico</button><button onclick="inserirComando('juros compostos capital 1000 taxa 5 meses 12')">juros</button><button onclick="inserirComando('gorjeta conta 100 taxa 10')">gorjeta</button><button onclick="inserirComando('cambio 100 USD para BRL')">câmbio</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-globe"></i> Utilidades</h3><div class="cmd-buttons"><button onclick="inserirComando('clima em São Paulo')">clima</button><button onclick="inserirComando('previsão São Paulo')">previsão</button><button onclick="inserirComando('últimas notícias')">notícias</button><button onclick="inserirComando('converter 10 km para milhas')">converter</button><button onclick="inserirComando('gerar senha 12')">senha</button><button onclick="inserirComando('timer 5 minutos')">timer</button><button onclick="inserirComando('receita')">receita</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-code"></i> Programação</h3><div class="cmd-buttons"><button onclick="inserirComando('rode python: print(\'oi\')')">Python</button><button onclick="inserirComando('rode js: console.log(\'oi\')')">JavaScript</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-heart"></i> Saúde/Estudos</h3><div class="cmd-buttons"><button onclick="inserirComando('imc peso 70 altura 1.75')">IMC</button><button onclick="inserirComando('pomodoro 25')">pomodoro</button><button onclick="inserirComando('cronograma de estudos')">cronograma</button><button onclick="inserirComando('tabuada do 7')">tabuada</button><button onclick="inserirComando('comparar textos [a] [b]')">comparar</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-lock"></i> Segurança</h3><div class="cmd-buttons"><button onclick="inserirComando('salvar senha [site] [user] [pass]')">salvar senha</button><button onclick="inserirComando('mostrar senhas')">mostrar senhas</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-calendar"></i> Agenda</h3><div class="cmd-buttons"><button onclick="inserirComando('adicionar evento 31/12/2025 Ano Novo')">add evento</button><button onclick="inserirComando('eventos hoje')">eventos hoje</button><button onclick="inserirComando('eventos amanhã')">eventos amanhã</button></div></div>
+                    <div class="cmd-category"><h3><i class="fas fa-film"></i> Entretenimento</h3><div class="cmd-buttons"><button onclick="inserirComando('recomendar filme')">recomendar filme</button><button onclick="inserirComando('rastrear [codigo]')">rastrear encomenda</button><button onclick="inserirComando('criar curriculo')">gerar currículo</button></div></div>
                 </div>
             </div>
 
-            <!-- Conteúdo da aba ARQUIVOS -->
             <div class="tab-content" id="tab-files">
                 <div class="files-panel">
                     <h3>📂 Gerenciamento de dados</h3>
@@ -170,7 +111,6 @@
                 </div>
             </div>
 
-            <!-- Conteúdo da aba ESTATÍSTICAS -->
             <div class="tab-content" id="tab-stats">
                 <div class="stats-panel" id="statsPanel">
                     <h3>📊 Estatísticas do JARVIS</h3>
@@ -184,11 +124,11 @@
         </main>
     </div>
 
-    <!-- Bibliotecas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
