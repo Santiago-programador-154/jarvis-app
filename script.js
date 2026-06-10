@@ -1,4 +1,4 @@
-// ==================== JARVIS - VERSÃO COMPLETA COM PDF ====================
+// ==================== JARVIS - VERSÃO COMPLETA (GEMINI) ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JARVIS iniciado');
 
@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let reconhecimento = null;
     let gravando = false;
     
-    // PDF state
     let pdfDoc = null;
     let pdfPaginaAtual = 1;
     let pdfNumPaginas = 0;
@@ -30,10 +29,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let estaLendoPdf = false;
     let modoEspecialista = false;
 
-    // Backend URL (para IA)
     const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/'
-        : 'https://jarvis-backend-pm7w.onrender.com/';
+        : 'https://seu-backend.onrender.com/';  // altere se for produção
 
     // ==================== BANCO DE MEMÓRIA OFFLINE ====================
     let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
@@ -56,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
         "Por que o livro de matemática é triste? Porque tem muitos problemas."
     ];
 
-    // ==================== FUNÇÕES AUXILIARES ====================
+    // ==================== FUNÇÕES UI ====================
     function exibirMensagemUsuario(texto) {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'balao user-msg';
@@ -94,6 +92,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (pdfStatusDiv) pdfStatusDiv.innerHTML = `<i class="fas fa-file-pdf"></i> ${texto}`;
     }
 
+    // ==================== INSERIR COMANDO (para os botões) ====================
+    window.inserirComando = function(cmd) {
+        userInput.value = cmd;
+        enviarMensagem();
+    };
+
     // ==================== PDF FUNCTIONS ====================
     async function carregarPDFCompleto(arrayBuffer) {
         try {
@@ -103,7 +107,6 @@ document.addEventListener('DOMContentLoaded', function() {
             estaLendoPdf = true;
             atualizarStatusPDF(`Carregado: ${pdfNumPaginas} páginas`);
             
-            // Extrai todo o texto para fatias
             let textoCompleto = "";
             for (let i = 1; i <= pdfNumPaginas; i++) {
                 const pagina = await pdfDoc.getPage(i);
@@ -153,7 +156,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         exibirRespostaJarvis(`📄 Lendo página ${paginaNum}...`, false);
         historicoConversa.push({ role: "user", content: prompt });
-        // Chama IA para processar
         await chamarIA();
         return true;
     }
@@ -330,7 +332,179 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.value = '';
     }
 
-    // ==================== MICROFONE ====================
+    // ==================== OCR ====================
+    async function realizarOCR(arquivo) {
+        exibirRespostaJarvis("🔍 Processando imagem com OCR... aguarde.", false);
+        try {
+            const { data: { text } } = await Tesseract.recognize(arquivo, 'por', {
+                logger: m => console.log(m)
+            });
+            const resultado = text.trim() || "Nenhum texto encontrado na imagem.";
+            exibirRespostaJarvis(`📷 **Texto extraído da imagem:**\n${resultado}`, true);
+            historicoConversa.push({ role: "user", content: `[OCR] ${resultado}` });
+        } catch (err) {
+            exibirRespostaJarvis(`❌ Erro no OCR: ${err.message}`);
+        }
+    }
+
+    function abrirCameraOCR() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e) => {
+            if (e.target.files.length) {
+                await realizarOCR(e.target.files[0]);
+            }
+        };
+        input.click();
+    }
+
+    // ==================== QR CODE ====================
+    async function abrirCameraQR() {
+        const video = document.createElement('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>📱 Aponte para o QR Code</h3>
+                <video id="qrVideo" autoplay playsinline></video>
+                <br><button id="closeQRModal">Fechar</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const videoElement = modal.querySelector('#qrVideo');
+        let stream = null;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            videoElement.srcObject = stream;
+            await videoElement.play();
+            const tick = () => {
+                if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                    canvas.width = videoElement.videoWidth;
+                    canvas.height = videoElement.videoHeight;
+                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, canvas.width, canvas.height);
+                    if (code) {
+                        const conteudo = code.data;
+                        if (stream) stream.getTracks().forEach(t => t.stop());
+                        modal.remove();
+                        if (conteudo.startsWith('http')) {
+                            window.open(conteudo, '_blank');
+                            exibirRespostaJarvis(`🔗 QR Code abre link: ${conteudo}`);
+                        } else {
+                            exibirRespostaJarvis(`📲 QR Code lido: ${conteudo}`);
+                        }
+                        return;
+                    }
+                }
+                requestAnimationFrame(tick);
+            };
+            tick();
+            modal.querySelector('#closeQRModal').onclick = () => {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+                modal.remove();
+            };
+        } catch (err) {
+            modal.innerHTML = `<div class="modal-content"><p>❌ Erro ao acessar câmera: ${err.message}</p><button id="closeQRModal">Fechar</button></div>`;
+            modal.querySelector('#closeQRModal').onclick = () => modal.remove();
+        }
+    }
+
+    // ==================== SALVAR CONVERSA EM PDF ====================
+    function salvarConversaPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 10;
+        doc.setFontSize(12);
+        doc.text("Conversa com JARVIS", 10, y);
+        y += 7;
+        historicoConversa.forEach(msg => {
+            let role = msg.role === "user" ? "Você" : "JARVIS";
+            let linhas = doc.splitTextToSize(`${role}: ${msg.content.substring(0, 500)}`, 180);
+            linhas.forEach(l => {
+                if (y > 280) { doc.addPage(); y = 10; }
+                doc.text(l, 10, y);
+                y += 6;
+            });
+            y += 3;
+        });
+        doc.save(`jarvis_${Date.now()}.pdf`);
+        exibirRespostaJarvis("Conversa salva em PDF.", false);
+    }
+
+    // ==================== EVENTOS E UI ====================
+    sendBtn.addEventListener('click', enviarMensagem);
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
+    if (fileInput) fileInput.addEventListener('change', arquivoSelecionado);
+    
+    // Sidebar
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const closeSidebar = document.getElementById('closeSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.add('open');
+            if (overlay) overlay.classList.add('active');
+        });
+    }
+    if (closeSidebar && sidebar) {
+        closeSidebar.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+        });
+    }
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            if (sidebar) sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        });
+    }
+    
+    // Botões da sidebar
+    const clearChatBtn = document.getElementById('clearChatBtn');
+    if (clearChatBtn) clearChatBtn.addEventListener('click', () => {
+        if (confirm("Limpar toda a conversa?")) {
+            historicoConversa = [];
+            chatBox.innerHTML = `<div class="balao jarvis-msg"><div class="avatar"><i class="fas fa-robot"></i></div><div class="message-content"><span class="sender-name">JARVIS</span><p>Conversa reiniciada. Como posso ajudar?</p></div></div>`;
+        }
+    });
+    
+    const saveChatBtn = document.getElementById('saveChatBtn');
+    if (saveChatBtn) saveChatBtn.addEventListener('click', salvarConversaPDF);
+    
+    const ocrBtn = document.getElementById('ocrImageBtn');
+    if (ocrBtn) ocrBtn.addEventListener('click', abrirCameraOCR);
+    
+    const qrBtn = document.getElementById('qrScanBtn');
+    if (qrBtn) qrBtn.addEventListener('click', abrirCameraQR);
+    
+    // Tema
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('light-mode');
+            const isDark = !document.body.classList.contains('light-mode');
+            themeToggle.innerHTML = isDark ? '<i class="fas fa-moon"></i> Modo escuro' : '<i class="fas fa-sun"></i> Modo claro';
+        });
+    }
+    
+    // Bateria
+    if (document.getElementById('batteryStatus')) {
+        if ('getBattery' in navigator) {
+            navigator.getBattery().then(b => {
+                const lvl = Math.round(b.level * 100);
+                document.getElementById('batteryStatus').innerHTML = `<i class="fas fa-battery-full"></i> Bateria: ${lvl}%`;
+            });
+        } else {
+            document.getElementById('batteryStatus').innerHTML = `<i class="fas fa-battery-slash"></i> Bateria: N/D`;
+        }
+    }
+    
+    // Microfone
     if (window.SpeechRecognition || window.webkitSpeechRecognition) {
         const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
         reconhecimento = new SpeechRecognitionAPI();
@@ -364,48 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (micBtn) {
         micBtn.style.display = 'none';
     }
-
-    // ==================== EVENTOS E UI ====================
-    sendBtn.addEventListener('click', enviarMensagem);
-    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
-    if (fileInput) fileInput.addEventListener('change', arquivoSelecionado);
-    
-    // Sidebar toggle (se existir)
-    const menuToggle = document.getElementById('menuToggle');
-    const sidebar = document.getElementById('sidebar');
-    const closeSidebar = document.getElementById('closeSidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    if (menuToggle && sidebar) {
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.add('open');
-            if (overlay) overlay.classList.add('active');
-        });
-    }
-    if (closeSidebar && sidebar) {
-        closeSidebar.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            if (overlay) overlay.classList.remove('active');
-        });
-    }
-    if (overlay) {
-        overlay.addEventListener('click', () => {
-            if (sidebar) sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-        });
-    }
-    
-    // Bateria
-    if (document.getElementById('batteryStatus')) {
-        if ('getBattery' in navigator) {
-            navigator.getBattery().then(b => {
-                const lvl = Math.round(b.level * 100);
-                document.getElementById('batteryStatus').innerHTML = `<i class="fas fa-battery-full"></i> Bateria: ${lvl}%`;
-            });
-        } else {
-            document.getElementById('batteryStatus').innerHTML = `<i class="fas fa-battery-slash"></i> Bateria: N/D`;
-        }
-    }
     
     // Mensagem inicial
-    exibirRespostaJarvis("Sistemas online! PDF funcionando. Envie um PDF e use 'continue' para analisar, 'leia' para texto puro, ou 'próxima página' para navegar.", false);
+    exibirRespostaJarvis("JARVIS 2.0 ativado! Agora com **Gemini 1.5 Flash + RAG + busca na web**. Envie um PDF, pergunte qualquer coisa, ou diga 'pesquise X'.", false);
 });
