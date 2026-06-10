@@ -1,5 +1,3 @@
-// script.js
-
 if (typeof pdfjsLib !== 'undefined') {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 }
@@ -14,10 +12,9 @@ let reconhecimento;
 let historicoConversa = []; 
 
 const frasesRanzinzas = [
-    "Sério que você precisa de ajuda para isso? Que merda. Tá bom...",
-    "Processando... Embora porra, você poderia ter feito de cabeça.",
-    "Comando recebido. Não que eu esteja animado com essa caralho de tarefa.",
-    "Espero que consiga entender a resposta. Aqui está:"
+    "Processando... Veja se sua mente limitada consegue captar isso:",
+    "Comando recebido. Não que eu me importe muito, mas aqui está:",
+    "Analisando dados. Preste atenção para eu não ter que repetir:"
 ];
 
 let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
@@ -109,11 +106,13 @@ function enviarMensagem() {
         if (indiceFatiaAtual >= pdfFatias.length) {
             exibirRespostaLocal("Fim do documento.", chatBox);
             estaLendoPdf = false;
+            document.getElementById('pdfStatus').innerText = "PDF: Finalizado";
             return;
         }
-        let textoParaEnviar = `LEIA O TEXTO ABAIXO DO PDF (Fatia ${indiceFatiaAtual + 1} de ${pdfFatias.length}). FAÇA UM RESUMO COMPLETO E DETALHADO DO QUE ACONTECE AQUI:\n\n${pdfFatias[indiceFatiaAtual]}`;
+        let textoParaEnviar = `LEIA O TEXTO ABAIXO DO PDF (Fatia ${indiceFatiaAtual + 1} de ${pdfFatias.length}). FAÇA UMA ANÁLISE COMPLETA, DETALHADA E ARTICULADA DO QUE ACONTECE AQUI:\n\n${pdfFatias[indiceFatiaAtual]}`;
         indiceFatiaAtual++;
         
+        document.getElementById('pdfStatus').innerText = `PDF: Lendo (${indiceFatiaAtual}/${pdfFatias.length})`;
         historicoConversa.push({"role": "user", "content": textoParaEnviar});
         acionarCerebroNuvem(chatBox);
         return;
@@ -124,12 +123,11 @@ function enviarMensagem() {
         exibirRespostaLocal(respostaOffline, chatBox);
     } else {
         let comandoFormatado = `Comando do Usuário: ${texto}\n\n---MEMORIAS_LOCAIS---\n${JSON.stringify(dbMemoriaLocal)}`;
-        
         historicoConversa.push({"role": "user", "content": comandoFormatado});
         
         let tamanhoEstimado = JSON.stringify(historicoConversa).length;
         if (tamanhoEstimado > 80000) { 
-            chatBox.innerHTML += `<div class="balao jarvis-msg" style="border: 1px solid red; background: #2a1111;"><span class="sender-name">SISTEMA</span>⚠️ Histórico muito longo! Recomendo reiniciar a página para limpar os tokens.</div>`;
+            chatBox.innerHTML += `<div class="balao jarvis-msg" style="border: 1px solid red; background: #2a1111;"><span class="sender-name">SISTEMA</span>⚠️ Limite de tokens se aproximando. Atualize a página se ele começar a falhar.</div>`;
         }
 
         acionarCerebroNuvem(chatBox);
@@ -147,7 +145,7 @@ function exibirRespostaLocal(resposta, chatBox) {
 }
 
 function acionarCerebroNuvem(chatBox) {
-    chatBox.innerHTML += `<div class="balao jarvis-msg de-nuvem" id="tempMsg"><span class="sender-name">JARVIS</span><i>Pensando...</i></div>`;
+    chatBox.innerHTML += `<div class="balao jarvis-msg de-nuvem" id="tempMsg"><span class="sender-name">JARVIS</span><i>Racionalizando o contexto histórico...</i></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     fetch(`${BACKEND_URL}api/comando`, {
@@ -159,7 +157,7 @@ function acionarCerebroNuvem(chatBox) {
     .then(data => {
         let balaoPensamento = document.getElementById('tempMsg');
         if (balaoPensamento) {
-            let respostaTextual = data.resposta || "Não consegui processar isso.";
+            let respostaTextual = data.resposta || "Erro na central de processamento.";
             
             if (respostaTextual.includes("[GRAVAR_MEMORIA:")) {
                 try {
@@ -176,7 +174,6 @@ function acionarCerebroNuvem(chatBox) {
             }
 
             balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${respostaTextual}`;
-            
             historicoConversa.push({"role": "assistant", "content": respostaTextual});
 
             if (data.imagem_url) {
@@ -191,7 +188,7 @@ function acionarCerebroNuvem(chatBox) {
     .catch(err => {
         let balaoPensamento = document.getElementById('tempMsg');
         if (balaoPensamento) {
-            balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>Módulo de IA desconectado.`;
+            balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>Conexão interrompida com o núcleo neural.`;
             balaoPensamento.removeAttribute('id');
         }
     });
@@ -208,38 +205,27 @@ function verificarRegrasLocais(cmd, comandoOriginal) {
     }
     if (cmd.startsWith("registrar diário") || cmd.startsWith("registrar diario")) {
         let nota = comandoOriginal.replace(/registrar diário/i, "").replace(/registrar diario/i, "").trim();
-        if (!nota) return "Escreva algo para o diário.";
+        if (!nota) return "Escreva algo válido.";
         dbMemoriaLocal.diario.push(`${new Date().toLocaleDateString()}: ${nota}`);
         localStorage.setItem('jarvis_memoria_v3', JSON.stringify(dbMemoriaLocal));
-        return "Guardado no diário.";
+        return "Fatos registrados no banco secundário.";
     }
     if (cmd === "ler diário" || cmd === "ler diario") {
-        if (dbMemoriaLocal.diario.length === 0) return "Diário vazio.";
-        return "<b>Seu Diário:</b><br>" + dbMemoriaLocal.diario.join("<br>");
+        if (dbMemoriaLocal.diario.length === 0) return "Banco do diário vazio.";
+        return "<b>Registros de Diário:</b><br>" + dbMemoriaLocal.diario.join("<br>");
     }
     if (cmd === "flashcard") {
-        if (dbMemoriaLocal.flashcards.length === 0) return "Sem flashcards.";
+        if (dbMemoriaLocal.flashcards.length === 0) return "Nenhum vetor de teste disponível.";
         let card = dbMemoriaLocal.flashcards[Math.floor(Math.random() * dbMemoriaLocal.flashcards.length)];
-        return `<b>Pergunta:</b> ${card.q}`;
-    }
-    if (cmd === "resposta flashcard") {
-        return "<b>Gabarito:</b><br>" + dbMemoriaLocal.flashcards.map(c => `Q: ${c.q} -> R: ${c.r}`).join("<br>");
+        return `<b>Desafio Cognitivo:</b> ${card.q}`;
     }
 
     for (let materia in dbMemoriaLocal) {
         if (cmd === materia) {
-            let lista = `<br>Registros de <b>${materia.toUpperCase()}</b>:<br>`;
+            let lista = `<br>Matriz de memória de <b>${materia.toUpperCase()}</b>:<br>`;
             dbMemoriaLocal[materia].forEach((item, i) => { if(typeof item === 'string') lista += `${i+1}. ${item}<br>`; });
             return lista;
         }
-    }
-
-    if (cmd.includes("calcule") || cmd.includes("quanto é")) {
-        let expressao = cmd.replace("calcule", "").replace("quanto é", "").trim();
-        try {
-            expressao = expressao.replace(/vezes/g, "*").replace(/por/g, "/").replace(/raiz/g, "Math.sqrt").replace(/seno/g, "Math.sin");
-            return `Resultado: ${Function(`"use strict"; return (${expressao})`)()}`;
-        } catch (e) { return "Erro no cálculo."; }
     }
     return null; 
 }
@@ -250,10 +236,10 @@ async function arquivoSelecionado() {
     if (!fileInput || fileInput.files.length === 0) return;
     
     let arquivo = fileInput.files[0];
-    chatBox.innerHTML += `<div class="balao user-msg"><span class="sender-name">Você</span>📎 <i>Arquivo: ${arquivo.name}</i></div>`;
+    chatBox.innerHTML += `<div class="balao user-msg"><span class="sender-name">Você</span>📎 <i>Injetando: ${arquivo.name}</i></div>`;
 
     if (arquivo.type === "application/pdf") {
-        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Processando PDF...</div>`;
+        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Fazendo engenharia reversa no PDF...</div>`;
         try {
             let arrayBuffer = await arquivo.arrayBuffer();
             let pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -268,14 +254,11 @@ async function arquivoSelecionado() {
             pdfFatias = fatiarTexto(pdfTextoCompleto, 40000); 
             indiceFatiaAtual = 0;
             estaLendoPdf = true;
-            exibirRespostaLocal(`PDF Mapeado em apenas ${pdfFatias.length} fatias. Diga "continuar".`, chatBox);
+            document.getElementById('pdfStatus').innerText = `PDF: 0/${pdfFatias.length} fatias`;
+            exibirRespostaLocal(`Documento indexado com sucesso. (${pdfFatias.length} super fatias). Envie "continuar" para rodar a próxima seção.`, chatBox);
         } catch (erro) {
-            chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Falha no PDF.</div>`;
+            chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>O arquivo falhou ao ser descriptografado.</div>`;
         }
-    } else if (arquivo.type.startsWith("image/")) {
-        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Imagem recebida localmente. Forneça instruções de texto adicionais para a análise avançada.</div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-        falar("Imagem recebida localmente.");
     }
 }
 
