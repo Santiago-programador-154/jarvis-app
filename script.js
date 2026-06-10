@@ -1,4 +1,4 @@
-// ==================== JARVIS - VERSÃO COMPLETA COM MEMÓRIA E APRENDIZADO ====================
+// ==================== JARVIS - VERSÃO COMPLETA COM MEMÓRIA, APRENDIZADO E PDF DE ALTO NÍVEL ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JARVIS iniciado');
 
@@ -26,12 +26,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let estaLendoPdf = false;
     let modoEspecialista = false;
 
-    // Backend URL (ajuste conforme seu backend real)
     const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/'
-        : 'https://jarvis-backend-pm7w.onrender.com/';  // altere se for outra URL
+        : 'https://jarvis-backend-pm7w.onrender.com/';  // altere para seu backend real
 
-    // ==================== BANCO DE MEMÓRIA OFFLINE (com localStorage) ====================
+    // ==================== BANCO DE MEMÓRIA OFFLINE ====================
     let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
         "geografia": ["Brasil: Brasília. População ~214M.", "EUA: Washington D.C.", "França: Paris.", "Japão: Tóquio."],
         "historia": ["Independência do Brasil: 1822.", "Revolução Francesa: 1789.", "1ª Guerra: 1914-1918.", "2ª Guerra: 1939-1945."],
@@ -52,7 +51,6 @@ document.addEventListener('DOMContentLoaded', function() {
         "Por que o livro de matemática é triste? Porque tem muitos problemas."
     ];
 
-    // Variável para controle do "aprender pdf"
     let aguardandoAprenderPDF = false;
     let nomeMateriaPDF = '';
 
@@ -101,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
         enviarMensagem();
     };
 
-    // ==================== APRENDER NOVO CONHECIMENTO OFFLINE ====================
+    // ==================== APRENDER OFFLINE ====================
     function adicionarConhecimentoOffline(materia, conteudo) {
         if (!dbMemoriaLocal[materia]) dbMemoriaLocal[materia] = [];
         dbMemoriaLocal[materia].push(conteudo);
@@ -117,7 +115,6 @@ document.addEventListener('DOMContentLoaded', function() {
             pdfPaginaAtual = 1;
             estaLendoPdf = true;
             atualizarStatusPDF(`Carregado: ${pdfNumPaginas} páginas`);
-            
             let textoCompleto = "";
             for (let i = 1; i <= pdfNumPaginas; i++) {
                 const pagina = await pdfDoc.getPage(i);
@@ -127,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
             pdfFatias = fatiarTexto(textoCompleto, 30000);
             indiceFatiaAtual = 0;
             atualizarStatusPDF(`${pdfNumPaginas} páginas, ${pdfFatias.length} fatias`);
-            return textoCompleto; // retorna o texto completo para reaproveitar
+            return textoCompleto;
         } catch(e) {
             console.error(e);
             return null;
@@ -155,16 +152,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const pagina = await pdfDoc.getPage(paginaNum);
         const conteudo = await pagina.getTextContent();
         const texto = conteudo.items.map(item => item.str).join(' ');
-        
         let prompt;
-        if (modo === 'especialista') {
-            prompt = `[LEITURA_ESPECIALISTA] Página ${paginaNum} do PDF:\n${texto}\n\nNarre este conteúdo como um documentário dramático.`;
-        } else if (modo === 'leitura') {
-            prompt = `[LEITURA_PURA_DO_PDF] - Página ${paginaNum}:\n${texto}`;
-        } else {
-            prompt = `[CONTINUAÇÃO DO PDF] - Página ${paginaNum}:\n${texto}\n\nFaça uma análise detalhada.`;
-        }
-        
+        if (modo === 'especialista')
+            prompt = `[LEITURA_ESPECIALISTA] Página ${paginaNum}:\n${texto}\nNarre como documentário dramático.`;
+        else if (modo === 'leitura')
+            prompt = `[LEITURA_PURA_DO_PDF] Página ${paginaNum}:\n${texto}`;
+        else
+            prompt = `[CONTINUAÇÃO DO PDF] Página ${paginaNum}:\n${texto}\nFaça análise detalhada.`;
         exibirRespostaJarvis(`📄 Lendo página ${paginaNum}...`, false);
         historicoConversa.push({ role: "user", content: prompt });
         await chamarIA();
@@ -173,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function enviarFatiaPDF(modoLeitura = false) {
         if (indiceFatiaAtual >= pdfFatias.length) {
-            exibirRespostaJarvis("Fim do documento. Todas as fatias foram lidas.");
+            exibirRespostaJarvis("Fim do documento.");
             estaLendoPdf = false;
             atualizarStatusPDF("Finalizado");
             return;
@@ -181,13 +175,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const textoFatia = pdfFatias[indiceFatiaAtual];
         indiceFatiaAtual++;
         atualizarStatusPDF(`Fatia ${indiceFatiaAtual}/${pdfFatias.length}`);
-        
-        let prompt;
-        if (modoLeitura) {
-            prompt = `[LEITURA_PURA_DO_PDF] - Fatia ${indiceFatiaAtual} de ${pdfFatias.length}\n\nConteúdo:\n${textoFatia}`;
-        } else {
-            prompt = `[CONTINUAÇÃO DO PDF] - Fatia ${indiceFatiaAtual} de ${pdfFatias.length}\n\nConteúdo:\n${textoFatia}\n\nFaça uma análise detalhada e inteligente.`;
-        }
+        let prompt = modoLeitura
+            ? `[LEITURA_PURA_DO_PDF] Fatia ${indiceFatiaAtual}: ${textoFatia}`
+            : `[CONTINUAÇÃO DO PDF] Fatia ${indiceFatiaAtual}: ${textoFatia}\nFaça análise detalhada.`;
         historicoConversa.push({ role: "user", content: prompt });
         await chamarIA();
     }
@@ -203,15 +193,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const hoje = new Date();
             return `${hoje.getDate()}/${hoje.getMonth()+1}/${hoje.getFullYear()}`;
         }
-        if (cmd === 'conte uma piada') {
-            return piadas[Math.floor(Math.random() * piadas.length)];
-        }
+        if (cmd === 'conte uma piada') return piadas[Math.floor(Math.random() * piadas.length)];
         if (cmd.startsWith('registrar diário')) {
             let nota = texto.replace(/registrar diário/i, '').trim();
-            if (!nota) return "Escreva algo para registrar.";
+            if (!nota) return "Escreva algo.";
             dbMemoriaLocal.diario.push(`${new Date().toLocaleDateString()}: ${nota}`);
             localStorage.setItem('jarvis_memoria_v3', JSON.stringify(dbMemoriaLocal));
-            return "Diário registrado com sucesso.";
+            return "Diário registrado.";
         }
         if (cmd === 'ler diário') {
             if (!dbMemoriaLocal.diario.length) return "Diário vazio.";
@@ -222,11 +210,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return `<b>Flashcard:</b> ${card.q}`;
         }
         for (let materia in dbMemoriaLocal) {
-            if (cmd === materia && dbMemoriaLocal[materia].length) {
+            if (cmd === materia && dbMemoriaLocal[materia].length)
                 return `<b>${materia.toUpperCase()}</b><br>${dbMemoriaLocal[materia].slice(0,5).join('<br>')}`;
-            }
         }
-        // Matemática simples
         try {
             const mathMatch = texto.match(/[\d\s\+\-\*\/\(\)\.\,\^\%]+/);
             if (mathMatch && !/[a-zA-Z]/.test(mathMatch[0])) {
@@ -246,10 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`${BACKEND_URL}api/comando`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    historico: historicoConversa.slice(-20),
-                    modo_especialista: modoEspecialista 
-                })
+                body: JSON.stringify({ historico: historicoConversa.slice(-20), modo_especialista: modoEspecialista })
             });
             const data = await response.json();
             if (typingDiv) typingDiv.style.display = 'none';
@@ -260,41 +243,75 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ==================== ENVIO PRINCIPAL ====================
+    // ==================== ENVIO PRINCIPAL (COM CRIAR PDF) ====================
     async function enviarMensagem() {
         const texto = userInput.value.trim();
         if (!texto) return;
 
         exibirMensagemUsuario(texto);
         userInput.value = '';
-        
         const cmd = texto.toLowerCase();
 
-        // ---- COMANDO APRENDER (OFFLINE) ----
+        // --- NOVO COMANDO: CRIAR PDF DE ALTO NÍVEL ---
+        if (cmd.startsWith('criar pdf')) {
+            let tema = texto.replace(/criar pdf/i, "").trim();
+            if (!tema) {
+                exibirRespostaJarvis("Especifique um tema. Exemplo: 'criar pdf sobre Guerra de Canudos'");
+                return;
+            }
+            exibirRespostaJarvis(`📄 Gerando PDF sobre *${tema}*... Isso pode levar alguns segundos.`, false);
+            const promptIA = `Crie um artigo completo, bem estruturado, sobre: ${tema}. Use formatação HTML simples: <h1> para título principal, <h2> para subtítulos, <p> para parágrafos, <ul> e <li> para listas. Seja detalhado e informativo.`;
+            try {
+                const respIA = await fetch(`${BACKEND_URL}api/comando`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ historico: [{ role: "user", content: promptIA }] })
+                });
+                const dataIA = await respIA.json();
+                let conteudo = dataIA.resposta || "Conteúdo não gerado pela IA.";
+                const responsePDF = await fetch(`${BACKEND_URL}api/gerar_pdf`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ titulo: tema, conteudo: conteudo })
+                });
+                if (responsePDF.ok) {
+                    const blob = await responsePDF.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${tema.replace(/ /g, '_')}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    exibirRespostaJarvis(`✅ PDF sobre *${tema}* gerado com sucesso! O download deve começar automaticamente.`);
+                } else {
+                    const erro = await responsePDF.json();
+                    exibirRespostaJarvis(`❌ Erro ao gerar PDF: ${erro.resposta || "Desconhecido"}`);
+                }
+            } catch (err) {
+                console.error(err);
+                exibirRespostaJarvis("❌ Falha na comunicação com o servidor para gerar o PDF.");
+            }
+            return;
+        }
+
+        // ---- APRENDER (OFFLINE) ----
         if (cmd.startsWith('aprender ')) {
             let resto = texto.substring(9).trim();
             let doisPontos = resto.indexOf(':');
             if (doisPontos > 0) {
                 let materia = resto.substring(0, doisPontos).trim().toLowerCase();
                 let conteudo = resto.substring(doisPontos + 1).trim();
-                if (materia && conteudo) {
-                    let resp = adicionarConhecimentoOffline(materia, conteudo);
-                    exibirRespostaJarvis(resp);
-                } else {
-                    exibirRespostaJarvis("Use: aprender [matéria] : [conteúdo]");
-                }
-            } else {
-                exibirRespostaJarvis("Use: aprender [matéria] : [conteúdo]");
-            }
+                if (materia && conteudo) exibirRespostaJarvis(adicionarConhecimentoOffline(materia, conteudo));
+                else exibirRespostaJarvis("Use: aprender [matéria] : [conteúdo]");
+            } else exibirRespostaJarvis("Use: aprender [matéria] : [conteúdo]");
             return;
         }
 
-        // ---- COMANDO APRENDER PDF ----
+        // ---- APRENDER PDF ----
         if (cmd.startsWith('aprender pdf')) {
             let nome = cmd.replace('aprender pdf', '').trim();
-            if (nome === '') {
-                exibirRespostaJarvis("Especifique o nome da matéria: aprender pdf [nome]");
-            } else {
+            if (!nome) exibirRespostaJarvis("Especifique o nome da matéria: aprender pdf [nome]");
+            else {
                 aguardandoAprenderPDF = true;
                 nomeMateriaPDF = nome;
                 exibirRespostaJarvis(`📖 Ok, envie um PDF e ele será adicionado à matéria "${nome}".`);
@@ -309,9 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     pdfPaginaAtual++;
                     await lerPaginaPDF(pdfPaginaAtual, 'analise');
                     atualizarStatusPDF(`Página ${pdfPaginaAtual}/${pdfNumPaginas}`);
-                } else {
-                    exibirRespostaJarvis("Já está na última página.");
-                }
+                } else exibirRespostaJarvis("Já está na última página.");
                 return;
             }
             if (cmd === 'página anterior') {
@@ -319,28 +334,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     pdfPaginaAtual--;
                     await lerPaginaPDF(pdfPaginaAtual, 'analise');
                     atualizarStatusPDF(`Página ${pdfPaginaAtual}/${pdfNumPaginas}`);
-                } else {
-                    exibirRespostaJarvis("Já está na primeira página.");
-                }
+                } else exibirRespostaJarvis("Já está na primeira página.");
                 return;
             }
             if (cmd === 'modo especialista') {
                 modoEspecialista = true;
-                if (pdfDoc) {
-                    await lerPaginaPDF(pdfPaginaAtual, 'especialista');
-                } else {
-                    exibirRespostaJarvis("Nenhum PDF carregado.");
-                }
+                if (pdfDoc) await lerPaginaPDF(pdfPaginaAtual, 'especialista');
+                else exibirRespostaJarvis("Nenhum PDF carregado.");
                 return;
             }
-            if (cmd === 'continue' || cmd === 'continuar') {
-                await enviarFatiaPDF(false);
-                return;
-            }
-            if (cmd === 'leia') {
-                await enviarFatiaPDF(true);
-                return;
-            }
+            if (cmd === 'continue' || cmd === 'continuar') { await enviarFatiaPDF(false); return; }
+            if (cmd === 'leia') { await enviarFatiaPDF(true); return; }
         }
 
         // ---- COMANDOS OFFLINE GERAIS ----
@@ -355,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await chamarIA();
     }
 
-    // ==================== UPLOAD DE PDF (com suporte a aprender pdf) ====================
+    // ==================== UPLOAD DE PDF (com aprender pdf) ====================
     async function arquivoSelecionado() {
         if (!fileInput || !fileInput.files.length) return;
         const arquivo = fileInput.files[0];
@@ -367,20 +371,14 @@ document.addEventListener('DOMContentLoaded', function() {
         exibirMensagemUsuario(`📎 Enviou o PDF: ${arquivo.name}`);
         const arrayBuffer = await arquivo.arrayBuffer();
         const textoCompleto = await carregarPDFCompleto(arrayBuffer);
-        
-        if (aguardandoAprenderPDF && nomeMateriaPDF) {
-            if (textoCompleto) {
-                adicionarConhecimentoOffline(nomeMateriaPDF, textoCompleto);
-                exibirRespostaJarvis(`📚 PDF aprendido como matéria "${nomeMateriaPDF}". Agora você pode consultar digitando "${nomeMateriaPDF}".`);
-            } else {
-                exibirRespostaJarvis("Falha ao extrair texto do PDF para aprendizado.");
-            }
+        if (aguardandoAprenderPDF && nomeMateriaPDF && textoCompleto) {
+            adicionarConhecimentoOffline(nomeMateriaPDF, textoCompleto);
+            exibirRespostaJarvis(`📚 PDF aprendido como matéria "${nomeMateriaPDF}". Agora consulte digitando "${nomeMateriaPDF}".`);
             aguardandoAprenderPDF = false;
             nomeMateriaPDF = '';
             fileInput.value = '';
             return;
         }
-        
         if (textoCompleto) {
             exibirRespostaJarvis(`✅ PDF carregado: ${pdfNumPaginas} páginas, ${pdfFatias.length} fatias.\nUse "continue" para análise ou "leia" para texto puro.\nNavegue com "próxima página".`);
         } else {
@@ -389,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.value = '';
     }
 
-    // ==================== OCR, QR, SALVAR CONVERSA (mesmo código anterior) ====================
+    // ==================== OCR ====================
     async function realizarOCR(arquivo) {
         exibirRespostaJarvis("🔍 Processando imagem com OCR... aguarde.", false);
         try {
@@ -401,17 +399,15 @@ document.addEventListener('DOMContentLoaded', function() {
             exibirRespostaJarvis(`❌ Erro no OCR: ${err.message}`);
         }
     }
-
     function abrirCameraOCR() {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        input.onchange = async (e) => {
-            if (e.target.files.length) await realizarOCR(e.target.files[0]);
-        };
+        input.onchange = async (e) => { if (e.target.files.length) await realizarOCR(e.target.files[0]); };
         input.click();
     }
 
+    // ==================== QR CODE ====================
     async function abrirCameraQR() {
         const video = document.createElement('video');
         const canvas = document.createElement('canvas');
@@ -451,6 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ==================== SALVAR CONVERSA PDF (jsPDF) ====================
     function salvarConversaPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -561,14 +558,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (savedHistorico) {
         try {
             historicoConversa = JSON.parse(savedHistorico);
-            // Reexibir as mensagens no chat (opcional)
-            for (let msg of historicoConversa) {
-                if (msg.role === 'user') {
-                    // apenas para UI, mas não vou recriar para não duplicar
-                }
-            }
         } catch(e) {}
     }
 
-    exibirRespostaJarvis("JARVIS ativado! Agora com memória de conversa e aprendizado offline. Use 'aprender [matéria] : [conteúdo]' ou 'aprender pdf [nome]' e envie um PDF.", false);
+    exibirRespostaJarvis("JARVIS ativado! Agora com geração de PDF de alto nível. Use 'criar pdf sobre [tema]' para gerar documentos completos.", false);
 });
