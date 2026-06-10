@@ -120,7 +120,6 @@ function enviarMensagem() {
     if (respostaOffline !== null) {
         exibirRespostaLocal(respostaOffline, chatBox);
     } else {
-        // Envia para a nuvem incluindo o banco de dados local para dar contexto à IA
         let comandoComMemorias = `Memórias locais atuais: ${JSON.stringify(dbMemoriaLocal)}\n\nComando do Usuário: ${texto}`;
         acionarCerebroNuvem(comandoComMemorias, chatBox);
     }
@@ -151,7 +150,6 @@ function acionarCerebroNuvem(textoComando, chatBox) {
         if (balaoPensamento) {
             let respostaTextual = data.resposta || "Não consegui processar isso.";
             
-            // INTEGRAÇÃO DE MEMÓRIA: Sincroniza o Online com o Offline
             if (respostaTextual.includes("[GRAVAR_MEMORIA:")) {
                 try {
                     let match = respostaTextual.match(/\[GRAVAR_MEMORIA\s*:\s*([^:]+)\s*:\s*([^\]]+)\]/);
@@ -168,7 +166,6 @@ function acionarCerebroNuvem(textoComando, chatBox) {
 
             balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${respostaTextual}`;
             
-            // Se a IA gerou uma imagem de alta qualidade, renderiza a tag img
             if (data.imagem_url) {
                 balaoPensamento.innerHTML += `<br><img src="${data.imagem_url}" alt="Imagem do Jarvis" style="width:100%; border-radius:10px; margin-top:10px; border:1px solid #00f0ff;">`;
             }
@@ -234,10 +231,17 @@ function verificarRegrasLocais(cmd, comandoOriginal) {
     return null; 
 }
 
+function dispararUpload() {
+    let inputInvisivel = document.getElementById('fileInput');
+    if (inputInvisivel) {
+        inputInvisivel.click(); 
+    }
+}
+
 async function arquivoSelecionado() {
     let fileInput = document.getElementById('fileInput');
     let chatBox = document.getElementById('chatBox');
-    if (fileInput.files.length === 0) return;
+    if (!fileInput || fileInput.files.length === 0) return;
     
     let arquivo = fileInput.files[0];
     chatBox.innerHTML += `<div class="balao user-msg"><span class="sender-name">Você</span>📎 <i>Arquivo: ${arquivo.name}</i></div>`;
@@ -261,6 +265,10 @@ async function arquivoSelecionado() {
         } catch (erro) {
             chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Falha no PDF.</div>`;
         }
+    } else if (arquivo.type.startsWith("image/")) {
+        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Imagem recebida localmente. Forneça instruções de texto adicionais para a análise avançada.</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        falar("Imagem recebida localmente.");
     }
 }
 
