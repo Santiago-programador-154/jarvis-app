@@ -27,7 +27,7 @@
     <div class="input-container">
         <div class="input-wrapper">
             <button class="btn-icon" id="attachBtn" onclick="dispararUpload()">📎</button>
-            <input type="file" id="fileInput" accept=".pdf,image/*" style="display: none;" onchange="arquivoSelecionado()">
+            <input type="file" id="fileInput" accept="application/pdf,image/*" style="display: none;" onchange="arquivoSelecionado()">
             
             <input type="text" id="userInput" placeholder="Mensagem" autocomplete="off">
         </div>
@@ -37,6 +37,7 @@
         <button class="btn-round" id="sendBtn" onclick="enviarMensagem()">➤</button>
     </div>
 
-   <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
