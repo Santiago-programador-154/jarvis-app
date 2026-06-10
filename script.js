@@ -11,6 +11,11 @@ let ranzinzaGravando = false;
 let reconhecimento;
 let historicoConversa = []; 
 
+// 🔧 URL dinâmica: se estiver localhost, aponta para backend local, senão usa a variável (ajuste manual)
+let BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000/'
+    : 'https://jarvis-backend-pm7w.onrender.com/';  // substitua pelo seu domínio real
+
 const frasesRanzinzas = [
     "Processando... Veja se sua mente limitada consegue captar isso:",
     "Comando recebido. Não que eu me importe muito, mas aqui está:",
@@ -27,27 +32,38 @@ let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
     "flashcards": [{ q: "Qual a capital do Brasil?", r: "Brasília" }]
 };
 
-const BACKEND_URL = "https://jarvis-backend-pm7w.onrender.com/"; 
-
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SpeechRecognition) {
     reconhecimento = new SpeechRecognition();
     reconhecimento.lang = 'pt-BR';
-    reconhecimento.continuous = true;
+    reconhecimento.continuous = false;      // 🛑 Evita loop infinito
     reconhecimento.interimResults = false;
 
     reconhecimento.onresult = function(event) {
-        let textoEscutado = event.results[event.results.length - 1][0].transcript.trim();
+        let textoEscutado = event.results[0][0].transcript.trim();
         let cmd = textoEscutado.toLowerCase();
-        if (ranzinzaGravando || cmd.startsWith("jarvis")) {
+        if (cmd.startsWith("jarvis")) {
             let comandoLimpo = cmd.replace(/^jarvis/i, "").trim();
             if (comandoLimpo !== "") {
                 document.getElementById('userInput').value = comandoLimpo;
                 enviarMensagem();
             }
+        } else if (ranzinzaGravando) {
+            // Se não começou com "jarvis" mas o microfone está ativo, ignora.
         }
     };
-    reconhecimento.onend = function() { if (ranzinzaGravando) reconhecimento.start(); };
+    reconhecimento.onend = function() { 
+        let micBtn = document.getElementById('micBtn');
+        if (ranzinzaGravando) {
+            // Se ainda estiver em modo gravação, religa (mas cuidado com loop)
+            // Melhor: não religar automaticamente, exige clique novamente
+            ranzinzaGravando = false;
+            micBtn.classList.remove('gravando');
+            micBtn.innerText = "🎙️";
+        }
+    };
+} else {
+    alert("Seu navegador não suporta reconhecimento de voz.");
 }
 
 function alternarVoz() {
@@ -78,11 +94,17 @@ function falar(texto) {
     }
 }
 
+// 🧹 Função para limitar o tamanho do histórico (evita estouro de tokens)
+function podarHistorico(limite = 30) {
+    if (historicoConversa.length > limite) {
+        historicoConversa = historicoConversa.slice(-limite);
+    }
+}
+
 function enviarMensagem() {
     let input = document.getElementById('userInput');
     let chatBox = document.getElementById('chatBox');
     let texto = input.value.trim();
-
     if (texto === "") return;
 
     chatBox.innerHTML += `<div class="balao user-msg"><span class="sender-name">Você</span>${texto}</div>`;
@@ -93,27 +115,30 @@ function enviarMensagem() {
 
     if (cmd === "jarvis silêncio" || cmd === "silêncio") {
         modoSilencio = true;
-        exibirRespostaLocal("Modo silêncio ativado.", chatBox);
+        exibirRespostaLocal("Modo silêncio ativado. Não falarei mais.", chatBox);
         return;
     }
     if (cmd === "jarvis volte a falar" || cmd === "volte a falar") {
         modoSilencio = false;
-        exibirRespostaLocal("Pronto, voltei a falar.", chatBox);
+        exibirRespostaLocal("Modo de áudio reativado.", chatBox);
         return;
     }
 
     if (estaLendoPdf && (cmd.includes("continue") || cmd.includes("continuar"))) {
         if (indiceFatiaAtual >= pdfFatias.length) {
-            exibirRespostaLocal("Fim do documento.", chatBox);
+            exibirRespostaLocal("Fim do documento. Encerrando leitura.", chatBox);
             estaLendoPdf = false;
             document.getElementById('pdfStatus').innerText = "PDF: Finalizado";
             return;
         }
-        let textoParaEnviar = `LEIA O TEXTO ABAIXO DO PDF (Fatia ${indiceFatiaAtual + 1} de ${pdfFatias.length}). FAÇA UMA ANÁLISE COMPLETA, DETALHADA E ARTICULADA DO QUE ACONTECE AQUI:\n\n${pdfFatias[indiceFatiaAtual]}`;
+        // ✅ Envia apenas a fatia, sem repetir instruções longas
+        let textoFatia = pdfFatias[indiceFatiaAtual];
         indiceFatiaAtual++;
+        document.getElementById('pdfStatus').innerText = `PDF: Lendo fatia ${indiceFatiaAtual}/${pdfFatias.length}`;
         
-        document.getElementById('pdfStatus').innerText = `PDF: Lendo (${indiceFatiaAtual}/${pdfFatias.length})`;
-        historicoConversa.push({"role": "user", "content": textoParaEnviar});
+        let promptFatia = `[CONTINUAÇÃO DO PDF] - Fatia ${indiceFatiaAtual} de ${pdfFatias.length}\n\nConteúdo:\n${textoFatia}\n\nAnalise detalhadamente este trecho, relacione com o anterior se possível, e entregue uma resposta inteligente.`;
+        historicoConversa.push({"role": "user", "content": promptFatia});
+        podarHistorico(30);
         acionarCerebroNuvem(chatBox);
         return;
     }
@@ -124,12 +149,7 @@ function enviarMensagem() {
     } else {
         let comandoFormatado = `Comando do Usuário: ${texto}\n\n---MEMORIAS_LOCAIS---\n${JSON.stringify(dbMemoriaLocal)}`;
         historicoConversa.push({"role": "user", "content": comandoFormatado});
-        
-        let tamanhoEstimado = JSON.stringify(historicoConversa).length;
-        if (tamanhoEstimado > 80000) { 
-            chatBox.innerHTML += `<div class="balao jarvis-msg" style="border: 1px solid red; background: #2a1111;"><span class="sender-name">SISTEMA</span>⚠️ Limite de tokens se aproximando. Atualize a página se ele começar a falhar.</div>`;
-        }
-
+        podarHistorico(30);
         acionarCerebroNuvem(chatBox);
     }
 }
@@ -168,16 +188,17 @@ function acionarCerebroNuvem(chatBox) {
                         if (!dbMemoriaLocal[mat]) dbMemoriaLocal[mat] = [];
                         dbMemoriaLocal[mat].push(info);
                         localStorage.setItem('jarvis_memoria_v3', JSON.stringify(dbMemoriaLocal));
-                        respostaTextual = respostaTextual.replace(/\[GRAVAR_MEMORIA.*?\]/g, `<i>(Sincronizado na memória local: [${mat.toUpperCase()}])</i>`);
+                        respostaTextual = respostaTextual.replace(/\[GRAVAR_MEMORIA.*?\]/g, `<i>✅ (Sincronizado na memória local: [${mat.toUpperCase()}])</i>`);
                     }
-                } catch(e) {}
+                } catch(e) { console.warn(e); }
             }
 
             balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${respostaTextual}`;
             historicoConversa.push({"role": "assistant", "content": respostaTextual});
+            podarHistorico(30);
 
             if (data.imagem_url) {
-                balaoPensamento.innerHTML += `<br><img src="${data.imagem_url}" alt="Imagem do Jarvis" style="width:100%; border-radius:10px; margin-top:10px; border:1px solid #00f0ff;">`;
+                balaoPensamento.innerHTML += `<br><img src="${data.imagem_url}" alt="Imagem gerada por IA" style="width:100%; border-radius:10px; margin-top:10px; border:1px solid #00f0ff;">`;
             }
             
             balaoPensamento.removeAttribute('id');
@@ -188,9 +209,10 @@ function acionarCerebroNuvem(chatBox) {
     .catch(err => {
         let balaoPensamento = document.getElementById('tempMsg');
         if (balaoPensamento) {
-            balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>Conexão interrompida com o núcleo neural.`;
+            balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>🔌 Conexão interrompida com o núcleo neural. Verifique se o backend está rodando em ${BACKEND_URL}`;
             balaoPensamento.removeAttribute('id');
         }
+        console.error(err);
     });
 }
 
@@ -250,25 +272,32 @@ async function arquivoSelecionado() {
                 textoExtraido += conteudoTexto.items.map(item => item.str).join(" ") + "\n";
             }
             pdfTextoCompleto = textoExtraido;
-            
-            pdfFatias = fatiarTexto(pdfTextoCompleto, 40000); 
+            pdfFatias = fatiarTexto(pdfTextoCompleto, 30000); // fatias menores
             indiceFatiaAtual = 0;
             estaLendoPdf = true;
             document.getElementById('pdfStatus').innerText = `PDF: 0/${pdfFatias.length} fatias`;
-            exibirRespostaLocal(`Documento indexado com sucesso. (${pdfFatias.length} super fatias). Envie "continuar" para rodar a próxima seção.`, chatBox);
+            exibirRespostaLocal(`Documento indexado com sucesso. (${pdfFatias.length} fatias). Envie "continuar" para processar a primeira seção.`, chatBox);
         } catch (erro) {
-            chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>O arquivo falhou ao ser descriptografado.</div>`;
+            console.error(erro);
+            chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>❌ Falha ao descriptografar o PDF. Verifique se não está corrompido.</div>`;
         }
+    } else {
+        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>⚠️ Apenas PDF é suportado para leitura no momento.</div>`;
     }
+    fileInput.value = '';
 }
 
 function fatiarTexto(texto, tamanhoMaximo) {
     let palavras = texto.split(" ");
     let fatias = []; let fatiaAtual = "";
-    palavras.forEach(p => {
-        if ((fatiaAtual + p).length > tamanhoMaximo) { fatias.push(fatiaAtual.trim()); fatiaAtual = p + " "; }
-        else { fatiaAtual += p + " "; }
-    });
+    for (let p of palavras) {
+        if ((fatiaAtual + p).length > tamanhoMaximo) {
+            fatias.push(fatiaAtual.trim());
+            fatiaAtual = p + " ";
+        } else {
+            fatiaAtual += p + " ";
+        }
+    }
     if (fatiaAtual.trim().length > 0) fatias.push(fatiaAtual.trim());
     return fatias;
 }
