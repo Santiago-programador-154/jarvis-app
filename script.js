@@ -1,4 +1,4 @@
-// ==================== JARVIS - VERSÃO COMPLETA COM TODAS AS FUNCIONALIDADES ====================
+// ==================== JARVIS - VERSÃO FINAL COMPLETA ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JARVIS iniciado');
 
@@ -25,11 +25,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let indiceFatiaAtual = 0;
     let estaLendoPdf = false;
     let modoEspecialista = false;
-    let modoAviao = false;  // para modo avião
+    let modoAviao = false;  // modo avião (sem backend)
 
     const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/'
-        : 'https://jarvis-backend-pm7w.onrender.com/';  // altere para seu backend real
+        : 'https://jarvis-backend-pm7w.onrender.com/';  // substitua pela sua URL real
 
     // ==================== BANCO DE MEMÓRIA OFFLINE ====================
     let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await chamarIA();
     }
 
-    // ==================== COMANDOS OFFLINE ====================
+    // ==================== COMANDOS OFFLINE BÁSICOS ====================
     function processarComandoOffline(texto) {
         const cmd = texto.toLowerCase();
         if (cmd.includes('que horas são')) {
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ==================== ENVIO PRINCIPAL ====================
+    // ==================== ENVIO PRINCIPAL (TODOS OS COMANDOS) ====================
     async function enviarMensagem() {
         const texto = userInput.value.trim();
         if (!texto) return;
@@ -256,8 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
         userInput.value = '';
         const cmd = texto.toLowerCase();
 
-        // ========== COMANDOS ESPECÍFICOS (PDF, aprender, etc.) ==========
-        // ---- APRENDER (OFFLINE) ----
+        // ---------- APRENDER (OFFLINE) ----------
         if (cmd.startsWith('aprender ')) {
             let resto = texto.substring(9).trim();
             let doisPontos = resto.indexOf(':');
@@ -270,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- APRENDER PDF ----
+        // ---------- APRENDER PDF ----------
         if (cmd.startsWith('aprender pdf')) {
             let nome = cmd.replace('aprender pdf', '').trim();
             if (!nome) exibirRespostaJarvis("Especifique o nome da matéria: aprender pdf [nome]");
@@ -282,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- CONTROLE DE PDF (navegação, continue, leia) ----
+        // ---------- CONTROLE DE PDF (navegação, continue, leia) ----------
         if (estaLendoPdf) {
             if (cmd === 'próxima página') {
                 if (pdfDoc && pdfPaginaAtual < pdfNumPaginas) {
@@ -310,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (cmd === 'leia') { await enviarFatiaPDF(true); return; }
         }
 
-        // ---- EXPORTAR DIÁRIO (TXT) ----
+        // ---------- EXPORTAR DIÁRIO (TXT) ----------
         if (cmd === 'exportar diario') {
             let db = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || { diario: [] };
             let conteudo = db.diario.join("\n");
@@ -324,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- EXPORTAR FLASHCARDS (CSV) ----
+        // ---------- EXPORTAR FLASHCARDS (CSV) ----------
         if (cmd === 'exportar flashcards') {
             let db = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || { flashcards: [] };
             let linhas = ["pergunta,resposta"];
@@ -341,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- GERAR ÁUDIO (MP3) ----
+        // ---------- GERAR ÁUDIO (MP3) ----------
         if (cmd.startsWith('criar audio sobre ')) {
             let tema = texto.replace(/criar audio sobre /i, "").trim();
             if (!tema) {
@@ -376,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- CRIAR SLIDES (PPTX) ----
+        // ---------- CRIAR SLIDES (PPTX) ----------
         if (cmd.startsWith('criar slides sobre ')) {
             let tema = texto.replace(/criar slides sobre /i, "").trim();
             if (!tema) {
@@ -411,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- CLIMA ----
+        // ---------- CLIMA ----------
         if (cmd.startsWith('clima em ')) {
             let cidade = texto.replace(/clima em /i, "").trim();
             if (!cidade) {
@@ -429,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- MASSA MOLAR ----
+        // ---------- MASSA MOLAR ----------
         if (cmd.startsWith('massa molar de ')) {
             let formula = texto.replace(/massa molar de /i, "").trim();
             if (!formula) {
@@ -446,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- EXECUTAR CÓDIGO ----
+        // ---------- EXECUTAR CÓDIGO ----------
         if (cmd.startsWith('rode python:')) {
             let codigo = texto.replace(/rode python:/i, "").trim();
             if (!codigo) {
@@ -476,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- ENCURTAR LINK ----
+        // ---------- ENCURTAR LINK ----------
         if (cmd.startsWith('encurtar ')) {
             let link = texto.replace(/encurtar /i, "").trim();
             if (!link) return exibirRespostaJarvis("Forneça o link.");
@@ -490,7 +489,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- LER PDF EM VOZ ALTA (contínuo) ----
+        // ---------- LER PDF EM VOZ ALTA (contínuo) ----------
         if (cmd === 'ler tudo em voz alta' && estaLendoPdf && pdfDoc) {
             exibirRespostaJarvis("🔊 Iniciando leitura contínua em voz alta...", false);
             let pagina = pdfPaginaAtual;
@@ -516,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- LEMBRETE (notificação) ----
+        // ---------- LEMBRETE (notificação) ----------
         if (cmd.startsWith('lembre-me de ')) {
             let resto = texto.replace(/lembre-me de /i, "").trim();
             let match = resto.match(/(.+?)\s+às\s+(\d{1,2}):(\d{2})/);
@@ -543,14 +542,241 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // ---- COMANDOS OFFLINE GERAIS ----
+        // ---------- CONVERSÃO DE UNIDADES (offline) ----------
+        if (cmd.startsWith('converter ')) {
+            let partes = texto.match(/converter (\d+(?:\.\d+)?)\s+(\w+)\s+para\s+(\w+)/i);
+            if (partes) {
+                let valor = parseFloat(partes[1]);
+                let de = partes[2].toLowerCase();
+                let para = partes[3].toLowerCase();
+                const resp = await fetch(`${BACKEND_URL}api/converter`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ valor: valor, de: de, para: para })
+                });
+                const data = await resp.json();
+                exibirRespostaJarvis(data.resposta || data.erro);
+            } else {
+                exibirRespostaJarvis("Formato: converter [valor] [unidade] para [unidade]. Ex: converter 10 km para milhas");
+            }
+            return;
+        }
+
+        // ---------- GERAR SENHA (offline) ----------
+        if (cmd.startsWith('gerar senha')) {
+            let tamanho = parseInt(cmd.match(/\d+/)?.[0]) || 12;
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+            let senha = "";
+            for (let i = 0; i < tamanho; i++) {
+                senha += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            exibirRespostaJarvis(`🔐 Senha gerada (${tamanho} caracteres): \`${senha}\``);
+            return;
+        }
+
+        // ---------- TRADUTOR OFFLINE (dicionário simples) ----------
+        const dicionario = {
+            "hello": "olá", "world": "mundo", "good": "bom", "bad": "ruim",
+            "house": "casa", "car": "carro", "dog": "cachorro", "cat": "gato",
+            "sun": "sol", "moon": "lua", "star": "estrela", "water": "água",
+            "fire": "fogo", "earth": "terra", "air": "ar"
+        };
+        if (cmd.startsWith('traduzir ')) {
+            let palavra = texto.replace(/traduzir /i, "").trim().toLowerCase();
+            if (dicionario[palavra]) {
+                exibirRespostaJarvis(`📖 Tradução de "${palavra}" → "${dicionario[palavra]}"`);
+            } else {
+                exibirRespostaJarvis(`Tradução para "${palavra}" não encontrada. Você pode ensinar: aprender traducao_${palavra} : [tradução]`);
+            }
+            return;
+        }
+
+        // ---------- CONTROLE DE GASTOS (localStorage) ----------
+        if (cmd.startsWith('adicionar gasto ')) {
+            let resto = texto.replace(/adicionar gasto /i, "").trim();
+            let partes = resto.match(/(.+?)\s+(\d+(?:\.\d+)?)/);
+            if (partes) {
+                let categoria = partes[1].trim();
+                let valor = parseFloat(partes[2]);
+                let gastos = JSON.parse(localStorage.getItem('jarvis_gastos')) || [];
+                gastos.push({ categoria, valor, data: new Date().toISOString() });
+                localStorage.setItem('jarvis_gastos', JSON.stringify(gastos));
+                exibirRespostaJarvis(`💰 Gasto adicionado: ${categoria} - R$ ${valor.toFixed(2)}`);
+            } else {
+                exibirRespostaJarvis("Formato: adicionar gasto [categoria] [valor]. Ex: adicionar gasto mercado 50.00");
+            }
+            return;
+        }
+        if (cmd === 'resumo gastos') {
+            let gastos = JSON.parse(localStorage.getItem('jarvis_gastos')) || [];
+            if (gastos.length === 0) {
+                exibirRespostaJarvis("Nenhum gasto registrado.");
+            } else {
+                let total = gastos.reduce((s, g) => s + g.valor, 0);
+                let porCategoria = {};
+                gastos.forEach(g => { porCategoria[g.categoria] = (porCategoria[g.categoria] || 0) + g.valor; });
+                let resumo = `💰 Total de gastos: R$ ${total.toFixed(2)}\nPor categoria:\n`;
+                for (let cat in porCategoria) {
+                    resumo += `   ${cat}: R$ ${porCategoria[cat].toFixed(2)}\n`;
+                }
+                exibirRespostaJarvis(resumo);
+            }
+            return;
+        }
+
+        // ---------- NOTÍCIAS (RSS) ----------
+        if (cmd === 'últimas notícias' || cmd === 'notícias') {
+            exibirRespostaJarvis("📰 Buscando as últimas notícias...", false);
+            const resp = await fetch(`${BACKEND_URL}api/noticias`);
+            const data = await resp.json();
+            exibirRespostaJarvis(data.resposta);
+            return;
+        }
+
+        // ---------- HORÓSCOPO ----------
+        if (cmd.startsWith('horóscopo ')) {
+            let signo = texto.replace(/horóscopo /i, "").trim().toLowerCase();
+            const signos = ["aries", "touro", "gemeos", "cancer", "leao", "virgem", "libra", "escorpiao", "sagitario", "capricornio", "aquario", "peixes"];
+            if (!signos.includes(signo)) {
+                exibirRespostaJarvis("Signo inválido. Escolha: aries, touro, gemeos, cancer, leao, virgem, libra, escorpiao, sagitario, capricornio, aquario, peixes.");
+                return;
+            }
+            exibirRespostaJarvis(`🔮 Buscando horóscopo para ${signo}...`, false);
+            try {
+                const resp = await fetch(`https://horoscope-api.herokuapp.com/horoscope/${signo}/today`);
+                const data = await resp.json();
+                exibirRespostaJarvis(`🔮 Horóscopo de ${signo}: ${data.horoscope || "Não disponível"}`);
+            } catch {
+                exibirRespostaJarvis("Erro ao buscar horóscopo. Tente novamente.");
+            }
+            return;
+        }
+
+        // ---------- TABUADA ----------
+        if (cmd.startsWith('tabuada do ')) {
+            let num = parseInt(cmd.replace('tabuada do', '').trim());
+            if (!isNaN(num)) {
+                let resultado = `📐 Tabuada do ${num}:\n`;
+                for (let i = 1; i <= 10; i++) {
+                    resultado += `${num} x ${i} = ${num * i}\n`;
+                }
+                exibirRespostaJarvis(resultado);
+            } else {
+                exibirRespostaJarvis("Digite: tabuada do [número]");
+            }
+            return;
+        }
+
+        // ---------- IMC ----------
+        if (cmd.startsWith('imc ')) {
+            let match = texto.match(/imc\s+peso\s+(\d+(?:\.\d+)?)\s+altura\s+(\d+(?:\.\d+)?)/i);
+            if (match) {
+                let peso = parseFloat(match[1]);
+                let altura = parseFloat(match[2]);
+                let imc = peso / (altura * altura);
+                let classificacao = "";
+                if (imc < 18.5) classificacao = "Abaixo do peso";
+                else if (imc < 25) classificacao = "Peso normal";
+                else if (imc < 30) classificacao = "Sobrepeso";
+                else if (imc < 35) classificacao = "Obesidade grau I";
+                else if (imc < 40) classificacao = "Obesidade grau II";
+                else classificacao = "Obesidade grau III";
+                exibirRespostaJarvis(`📊 IMC = ${imc.toFixed(2)} - ${classificacao}`);
+            } else {
+                exibirRespostaJarvis("Formato: imc peso [kg] altura [m]. Ex: imc peso 70 altura 1.75");
+            }
+            return;
+        }
+
+        // ---------- JUROS COMPOSTOS ----------
+        if (cmd.startsWith('juros compostos ')) {
+            let match = texto.match(/juros compostos\s+capital\s+(\d+(?:\.\d+)?)\s+taxa\s+(\d+(?:\.\d+)?)%?\s+meses\s+(\d+)/i);
+            if (match) {
+                let capital = parseFloat(match[1]);
+                let taxa = parseFloat(match[2]) / 100;
+                let meses = parseInt(match[3]);
+                let montante = capital * Math.pow(1 + taxa, meses);
+                let juros = montante - capital;
+                exibirRespostaJarvis(`📈 Montante: R$ ${montante.toFixed(2)}\nJuros: R$ ${juros.toFixed(2)}`);
+            } else {
+                exibirRespostaJarvis("Formato: juros compostos capital [valor] taxa [%] meses [n]. Ex: juros compostos capital 1000 taxa 5 meses 12");
+            }
+            return;
+        }
+
+        // ---------- POMODORO (timer) ----------
+        if (cmd.startsWith('pomodoro ')) {
+            let minutos = parseInt(cmd.replace('pomodoro', '').trim());
+            if (!isNaN(minutos) && minutos > 0) {
+                exibirRespostaJarvis(`🍅 Pomodoro de ${minutos} minutos iniciado!`);
+                setTimeout(() => {
+                    exibirRespostaJarvis(`⏰ Pomodoro de ${minutos} minutos finalizado!`);
+                    if (Notification.permission === "granted") {
+                        new Notification("Pomodoro", { body: "Tempo finalizado!" });
+                    }
+                }, minutos * 60 * 1000);
+            } else {
+                exibirRespostaJarvis("Digite: pomodoro [minutos]. Ex: pomodoro 25");
+            }
+            return;
+        }
+
+        // ---------- TELA CHEIA ----------
+        if (cmd === 'tela cheia') {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+                exibirRespostaJarvis("🖥️ Tela cheia ativada.");
+            } else {
+                exibirRespostaJarvis("Tela cheia não suportada neste navegador.");
+            }
+            return;
+        }
+
+        // ---------- VIBRAR ----------
+        if (cmd === 'vibrar') {
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+                exibirRespostaJarvis("📳 Vibração acionada.");
+            } else {
+                exibirRespostaJarvis("Vibração não suportada.");
+            }
+            return;
+        }
+
+        // ---------- BUSCA NO HISTÓRICO ----------
+        if (cmd.startsWith('buscar no histórico ')) {
+            let termo = cmd.replace('buscar no histórico', '').trim();
+            let historicoCompleto = JSON.parse(localStorage.getItem('jarvis_historico')) || [];
+            let resultados = historicoCompleto.filter(msg => msg.content.toLowerCase().includes(termo));
+            if (resultados.length === 0) {
+                exibirRespostaJarvis(`Nenhuma mensagem encontrada com "${termo}".`);
+            } else {
+                let resp = `🔍 Resultados para "${termo}":\n` + resultados.slice(-5).map(m => `${m.role}: ${m.content.substring(0, 100)}...`).join("\n");
+                exibirRespostaJarvis(resp);
+            }
+            return;
+        }
+
+        // ---------- MODO AVIÃO ----------
+        if (cmd === 'modo avião') {
+            modoAviao = true;
+            exibirRespostaJarvis("✈️ Modo avião ativado. Comandos offline apenas.");
+            return;
+        }
+        if (cmd === 'modo normal') {
+            modoAviao = false;
+            exibirRespostaJarvis("📡 Modo normal ativado. IA reconectada.");
+            return;
+        }
+
+        // ---------- COMANDOS OFFLINE GERAIS ----------
         let respostaOffline = processarComandoOffline(texto);
         if (respostaOffline) {
             exibirRespostaJarvis(respostaOffline, true, true);
             return;
         }
 
-        // ---- SE NADA DISSO, CHAMA IA (se modo avião não estiver ativo) ----
+        // ---------- SE NADA DISSO, CHAMA IA (se modo avião não estiver ativo) ----------
         if (modoAviao) {
             exibirRespostaJarvis("✈️ Modo avião ativo. Use comandos offline.");
         } else {
@@ -759,5 +985,5 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch(e) {}
     }
 
-    exibirRespostaJarvis("JARVIS ativado! Agora com todas as funcionalidades (PDF, imagens, áudio, slides, clima, conversões, código, etc.)", false);
+    exibirRespostaJarvis("✅ JARVIS ativado com todas as funcionalidades: PDF, imagens, áudio, slides, clima, código, conversões, senhas, tradutor, gastos, notícias, horóscopo, tabuada, IMC, juros, pomodoro, tela cheia, vibrar, busca no histórico, modo avião e muito mais!", false);
 });
