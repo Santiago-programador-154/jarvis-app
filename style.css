@@ -3,7 +3,6 @@
     margin: 0;
     padding: 0;
 }
-
 body {
     background-color: #060b13;
     color: #e2e8f0;
@@ -13,14 +12,11 @@ body {
     background-image: radial-gradient(rgba(0, 240, 255, 0.03) 2px, transparent 0);
     background-size: 30px 30px;
 }
-
 .app-container {
     display: flex;
     width: 100vw;
     height: 100vh;
 }
-
-/* Painel Lateral */
 .sidebar {
     width: 300px;
     background: #0b1424;
@@ -30,21 +26,18 @@ body {
     padding: 20px;
     gap: 25px;
 }
-
 .sidebar-header h2 {
     font-size: 1.3rem;
     color: #00f0ff;
     letter-spacing: 2px;
     text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
 }
-
 .status-online {
     font-size: 0.75rem;
     color: #00ff66;
     margin-top: 5px;
     font-weight: bold;
 }
-
 .sidebar-section h3 {
     font-size: 0.9rem;
     color: #38bdf8;
@@ -52,7 +45,6 @@ body {
     margin-bottom: 10px;
     letter-spacing: 1px;
 }
-
 .module-card {
     background: #111e36;
     border: 1px solid #1e3a5f;
@@ -62,16 +54,13 @@ body {
     margin-bottom: 8px;
     color: #94a3b8;
 }
-
 .sidebar-text {
     font-size: 0.8rem;
     color: #64748b;
     line-height: 1.4;
     margin-bottom: 10px;
 }
-
 .btn-clear {
-    width: 100%;
     background: #1e293b;
     border: 1px solid #475569;
     color: #cbd5e1;
@@ -80,22 +69,20 @@ body {
     cursor: pointer;
     font-size: 0.8rem;
     transition: all 0.2s;
+    width: 100%;
+    margin-top: 6px;
 }
-
 .btn-clear:hover {
-    background: #b91c1c;
-    border-color: #ef4444;
-    color: white;
+    background: #00f0ff;
+    color: #060b13;
+    border-color: #00f0ff;
 }
-
-/* Área Principal do Chat */
 .main-chat {
     flex: 1;
     display: flex;
     flex-direction: column;
     background: #080f1d;
 }
-
 .chat-container {
     flex: 1;
     padding: 20px;
@@ -104,8 +91,6 @@ body {
     flex-direction: column;
     gap: 15px;
 }
-
-/* Customização dos Balões */
 .balao {
     padding: 15px 18px;
     border-radius: 12px;
@@ -115,7 +100,6 @@ body {
     word-wrap: break-word;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-
 .user-msg {
     background: #0f172a;
     color: #f8fafc;
@@ -123,7 +107,6 @@ body {
     border-top-right-radius: 0px;
     border-right: 3px solid #38bdf8;
 }
-
 .jarvis-msg {
     background: #0f172a;
     color: #e2e8f0;
@@ -131,7 +114,6 @@ body {
     border-top-left-radius: 0px;
     border-left: 3px solid #00f0ff;
 }
-
 .sender-name {
     font-size: 0.75rem;
     font-weight: bold;
@@ -140,11 +122,8 @@ body {
     text-transform: uppercase;
     letter-spacing: 1px;
 }
-
 .user-msg .sender-name { color: #38bdf8; }
 .jarvis-msg .sender-name { color: #00f0ff; }
-
-/* Entrada de Dados */
 .input-container {
     background: #0b1424;
     padding: 15px;
@@ -153,7 +132,6 @@ body {
     gap: 10px;
     border-top: 1px solid #1e3a5f;
 }
-
 .input-wrapper {
     flex: 1;
     background: #111e36;
@@ -164,7 +142,6 @@ body {
     padding: 5px 15px;
     gap: 12px;
 }
-
 input {
     flex: 1;
     background: transparent;
@@ -174,14 +151,12 @@ input {
     font-size: 1rem;
     outline: none;
 }
-
 .btn-icon {
     color: #38bdf8;
     font-size: 1.3rem;
     cursor: pointer;
     user-select: none;
 }
-
 .btn-round {
     width: 45px;
     height: 45px;
@@ -196,20 +171,44 @@ input {
     cursor: pointer;
     transition: all 0.2s;
 }
-
 .btn-round:hover {
     background: #00f0ff;
     color: #060b13;
     box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
 }
-
 #micBtn.gravando {
     background: #b91c1c;
     border-color: #ef4444;
     color: white;
     animation: pulsar 1.5s infinite;
 }
-
+@keyframes pulsar {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+.modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal-content {
+    background: #0f172a;
+    border: 2px solid #00f0ff;
+    border-radius: 16px;
+    padding: 20px;
+    max-width: 90%;
+    text-align: center;
+}
+.modal-content video, .modal-content canvas {
+    max-width: 100%;
+    border-radius: 12px;
+}
 @media (max-width: 768px) {
     .sidebar { display: none; }
 }
