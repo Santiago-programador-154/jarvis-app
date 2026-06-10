@@ -120,8 +120,9 @@ function enviarMensagem() {
     if (respostaOffline !== null) {
         exibirRespostaLocal(respostaOffline, chatBox);
     } else {
-        let comandoComMemorias = `Memórias locais atuais: ${JSON.stringify(dbMemoriaLocal)}\n\nComando do Usuário: ${texto}`;
-        acionarCerebroNuvem(comandoComMemorias, chatBox);
+        // Separação limpa do comando com divisor seguro
+        let comandoFormatado = `Comando do Usuário: ${texto}\n\n---MEMORIAS_LOCAIS---\n${JSON.stringify(dbMemoriaLocal)}`;
+        acionarCerebroNuvem(comandoFormatado, chatBox);
     }
 }
 
