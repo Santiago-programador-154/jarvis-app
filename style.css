@@ -5,18 +5,16 @@
     --text-primary: #f0f0f0;
     --text-secondary: #a0a0b0;
     --accent: #00f0ff;
-    --accent-glow: rgba(0, 240, 255, 0.2);
+    --accent-glow: rgba(0,240,255,0.2);
     --user-bubble: #2a2a3a;
     --jarvis-bubble: #1a1a2a;
     --border: #2a2a3a;
     --shadow: 0 8px 20px rgba(0,0,0,0.4);
+    --radius: 12px;
+    --transition: 0.2s ease;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -25,11 +23,11 @@ body {
     height: 100vh;
     overflow: hidden;
 }
-
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg-secondary); }
 ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
 
+/* Layout principal */
 .app-container {
     display: flex;
     height: 100%;
@@ -37,7 +35,7 @@ body {
     position: relative;
 }
 
-/* Sidebar - estilo drawer */
+/* Sidebar (menu lateral) */
 .sidebar {
     position: fixed;
     top: 0;
@@ -55,52 +53,31 @@ body {
     z-index: 1000;
     box-shadow: 4px 0 20px rgba(0,0,0,0.3);
 }
-.sidebar.open {
-    left: 0;
-}
-
-/* Overlay quando sidebar aberta */
+.sidebar.open { left: 0; }
 .sidebar-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     background: rgba(0,0,0,0.5);
     backdrop-filter: blur(2px);
     z-index: 999;
     display: none;
 }
-.sidebar-overlay.active {
-    display: block;
-}
+.sidebar-overlay.active { display: block; }
 
 .sidebar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
-.logo-area {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--accent);
-}
+.logo-area { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: bold; color: var(--accent); }
 .logo-area i { font-size: 1.6rem; }
 .logo-area h2 { font-size: 1.2rem; letter-spacing: 1px; }
-.close-sidebar {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.3rem;
-    cursor: pointer;
-}
+.close-sidebar { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; }
 
 .status-card {
     background: var(--bg-tertiary);
-    border-radius: 12px;
+    border-radius: var(--radius);
     padding: 10px;
     display: flex;
     align-items: center;
@@ -108,53 +85,25 @@ body {
     font-size: 0.75rem;
     font-weight: 500;
 }
-.status-led { width: 10px; height: 10px; border-radius: 50%; }
-.status-led.online { background: #00ff66; box-shadow: 0 0 5px #00ff66; animation: pulse 1.5s infinite; }
+.status-led { width: 10px; height: 10px; border-radius: 50%; background: #00ff66; box-shadow: 0 0 5px #00ff66; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
 .sidebar-section h3 {
     font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
     color: var(--text-secondary);
     margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
-.module-card {
-    background: var(--bg-tertiary);
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text-secondary);
-}
-.quick-commands {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 15px;
-}
-.cmd-chip {
-    background: var(--bg-tertiary);
-    border-radius: 20px;
-    padding: 6px 12px;
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: 0.2s;
-}
-.cmd-chip:hover, .cmd-chip:active { background: var(--accent); color: #000; }
 .btn-clear {
     width: 100%;
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px;
-    margin-top: 8px;
+    border-radius: var(--radius);
+    padding: 8px;
+    margin-top: 6px;
     color: var(--text-primary);
     cursor: pointer;
     display: flex;
@@ -162,11 +111,24 @@ body {
     justify-content: center;
     gap: 8px;
     font-size: 0.85rem;
-    transition: 0.2s;
+    transition: var(--transition);
 }
-.btn-clear:active { background: var(--accent); color: #000; }
+.btn-clear:hover, .btn-clear:active { background: var(--accent); color: #000; }
 
-/* Main chat */
+.theme-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.theme-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-primary);
+}
+.theme-btn:hover { background: var(--accent); color: #000; }
+
+/* Área principal */
 .main-chat {
     flex: 1;
     display: flex;
@@ -176,7 +138,7 @@ body {
     height: 100%;
 }
 .chat-header {
-    padding: 10px 16px;
+    padding: 12px 16px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -185,26 +147,53 @@ body {
     backdrop-filter: blur(12px);
     z-index: 10;
 }
-.menu-btn, .new-chat-btn {
+.menu-btn, .icon-btn {
     background: var(--bg-tertiary);
     border: none;
     color: var(--text-primary);
     width: 40px;
     height: 40px;
-    border-radius: 12px;
+    border-radius: var(--radius);
     cursor: pointer;
     font-size: 1.2rem;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-.menu-btn:active, .new-chat-btn:active { background: var(--accent); color: #000; }
-.chat-title {
-    flex: 1;
-    font-weight: 500;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
+.menu-btn:active, .icon-btn:active { background: var(--accent); color: #000; }
+.chat-title { flex: 1; font-weight: 500; font-size: 0.9rem; color: var(--text-secondary); }
+.header-actions { display: flex; gap: 8px; }
+
+/* Abas */
+.tabs-container {
+    display: flex;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 0 8px;
 }
+.tab-btn {
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    border-bottom: 2px solid transparent;
+}
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+.tab-content {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+}
+.tab-content.active { display: flex; flex-direction: column; }
+
+/* Chat */
 .chat-container {
     flex: 1;
     overflow-y: auto;
@@ -238,16 +227,10 @@ body {
 }
 .user-msg .message-content { background: var(--user-bubble); border-bottom-right-radius: 4px; }
 .jarvis-msg .message-content { border-bottom-left-radius: 4px; }
-.sender-name {
-    font-size: 0.65rem;
-    font-weight: bold;
-    color: var(--accent);
-    display: block;
-    margin-bottom: 2px;
-}
+.sender-name { font-size: 0.65rem; font-weight: bold; color: var(--accent); display: block; margin-bottom: 2px; }
 .message-content p { margin: 0; line-height: 1.4; font-size: 0.9rem; word-break: break-word; }
 
-/* Input area */
+/* Input */
 .input-container {
     padding: 12px 16px;
     background: var(--bg-secondary);
@@ -280,11 +263,9 @@ body {
     color: var(--text-secondary);
     font-size: 1.3rem;
     cursor: pointer;
-    padding: 0;
     display: flex;
     align-items: center;
 }
-.btn-icon:active, .mic-btn:active { color: var(--accent); }
 .send-btn {
     background: var(--accent);
     border: none;
@@ -298,7 +279,6 @@ body {
     align-items: center;
     justify-content: center;
 }
-.send-btn:active { transform: scale(0.95); }
 .typing-indicator {
     position: absolute;
     bottom: 80px;
@@ -311,7 +291,79 @@ body {
     display: none;
 }
 
-/* Tema claro */
+/* Aba de comandos */
+.commands-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+.cmd-category {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    padding: 12px;
+    border: 1px solid var(--border);
+}
+.cmd-category h3 {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    color: var(--accent);
+}
+.cmd-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.cmd-buttons button {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-primary);
+}
+.cmd-buttons button:hover {
+    background: var(--accent);
+    color: #000;
+}
+
+/* Arquivos e estatísticas */
+.files-panel, .stats-panel {
+    padding: 20px;
+}
+.files-panel h3, .stats-panel h3 {
+    margin: 16px 0 12px 0;
+    font-size: 1.1rem;
+}
+.file-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.file-buttons button, .stats-panel button {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.file-buttons button:hover { background: var(--accent); color: #000; }
+.stats-panel p {
+    background: var(--bg-tertiary);
+    padding: 10px;
+    border-radius: var(--radius);
+    margin: 8px 0;
+}
+
+/* Temas */
 body.light-mode {
     --bg-primary: #f5f5f7;
     --bg-secondary: #ffffff;
@@ -322,4 +374,20 @@ body.light-mode {
     --jarvis-bubble: #ffffff;
     --border: #d0d0da;
     --shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+body.blue-theme {
+    --accent: #1e90ff;
+    --accent-glow: rgba(30,144,255,0.2);
+}
+body.green-theme {
+    --accent: #32cd32;
+    --accent-glow: rgba(50,205,50,0.2);
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .commands-grid { grid-template-columns: 1fr; }
+    .cmd-buttons button { padding: 10px 12px; font-size: 0.8rem; }
+    .file-buttons button { width: 100%; justify-content: center; }
+    .balao { max-width: 95%; }
 }
