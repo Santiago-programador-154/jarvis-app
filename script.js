@@ -231,13 +231,6 @@ function verificarRegrasLocais(cmd, comandoOriginal) {
     return null; 
 }
 
-function dispararUpload() {
-    let inputInvisivel = document.getElementById('fileInput');
-    if (inputInvisivel) {
-        inputInvisivel.click(); 
-    }
-}
-
 async function arquivoSelecionado() {
     let fileInput = document.getElementById('fileInput');
     let chatBox = document.getElementById('chatBox');
