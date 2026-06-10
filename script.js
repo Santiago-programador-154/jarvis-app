@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/'
-        : 'https://seu-backend.onrender.com/';  // altere se for produção
+        : 'https://jarvis-backend-pm7w.onrender.com/';  // altere se for produção
 
     // ==================== BANCO DE MEMÓRIA OFFLINE ====================
     let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
