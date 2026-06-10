@@ -1,28 +1,41 @@
-// ==================== JARVIS - VERSÃO ESTÁVEL ====================
-// Inicialização segura
+// ==================== JARVIS - VERSÃO COMPLETA COM PDF ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JARVIS iniciado');
 
-    // Elementos do DOM
+    // ==================== ELEMENTOS DOM ====================
     const chatBox = document.getElementById('chatBox');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
     const micBtn = document.getElementById('micBtn');
+    const fileInput = document.getElementById('fileInput');
+    const pdfStatusDiv = document.getElementById('pdfStatus');
 
-    // Verificação crítica
     if (!sendBtn || !userInput || !chatBox) {
-        console.error('Elementos do chat não encontrados!');
-        alert('Erro: elementos do chat não encontrados. Recarregue a página.');
+        console.error('Elementos essenciais não encontrados');
         return;
     }
 
-    // Estado
+    // ==================== ESTADO GLOBAL ====================
     let modoSilencio = false;
     let historicoConversa = [];
     let reconhecimento = null;
     let gravando = false;
+    
+    // PDF state
+    let pdfDoc = null;
+    let pdfPaginaAtual = 1;
+    let pdfNumPaginas = 0;
+    let pdfFatias = [];
+    let indiceFatiaAtual = 0;
+    let estaLendoPdf = false;
+    let modoEspecialista = false;
 
-    // Banco de memória local (expandido)
+    // Backend URL (para IA)
+    const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:5000/'
+        : 'https://jarvis-backend-pm7w.onrender.com/';
+
+    // ==================== BANCO DE MEMÓRIA OFFLINE ====================
     let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
         "geografia": ["Brasil: Brasília. População ~214M.", "EUA: Washington D.C.", "França: Paris.", "Japão: Tóquio."],
         "historia": ["Independência do Brasil: 1822.", "Revolução Francesa: 1789.", "1ª Guerra: 1914-1918.", "2ª Guerra: 1939-1945."],
@@ -43,27 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
         "Por que o livro de matemática é triste? Porque tem muitos problemas."
     ];
 
-    // Função para exibir mensagem do JARVIS
-    function exibirRespostaJarvis(resposta, falarTexto = true) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'balao jarvis-msg';
-        msgDiv.innerHTML = `<div class="avatar"><i class="fas fa-robot"></i></div>
-                            <div class="message-content">
-                                <span class="sender-name">JARVIS</span>
-                                <p>${resposta.replace(/\n/g, '<br>')}</p>
-                            </div>`;
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-        historicoConversa.push({ role: "assistant", content: resposta });
-        if (falarTexto && !modoSilencio) {
-            const utterance = new SpeechSynthesisUtterance(resposta.replace(/<[^>]*>/g, ''));
-            utterance.lang = 'pt-BR';
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
-        }
-    }
-
-    // Função para exibir mensagem do usuário
+    // ==================== FUNÇÕES AUXILIARES ====================
     function exibirMensagemUsuario(texto) {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'balao user-msg';
@@ -77,24 +70,129 @@ document.addEventListener('DOMContentLoaded', function() {
         historicoConversa.push({ role: "user", content: texto });
     }
 
-    // Processamento offline (comandos)
+    function exibirRespostaJarvis(resposta, falarTexto = true, isHtml = false) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'balao jarvis-msg';
+        const conteudo = isHtml ? resposta : resposta.replace(/\n/g, '<br>');
+        msgDiv.innerHTML = `<div class="avatar"><i class="fas fa-robot"></i></div>
+                            <div class="message-content">
+                                <span class="sender-name">JARVIS</span>
+                                <p>${conteudo}</p>
+                            </div>`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        historicoConversa.push({ role: "assistant", content: resposta });
+        if (falarTexto && !modoSilencio) {
+            const utterance = new SpeechSynthesisUtterance(resposta.replace(/<[^>]*>/g, ''));
+            utterance.lang = 'pt-BR';
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function atualizarStatusPDF(texto) {
+        if (pdfStatusDiv) pdfStatusDiv.innerHTML = `<i class="fas fa-file-pdf"></i> ${texto}`;
+    }
+
+    // ==================== PDF FUNCTIONS ====================
+    async function carregarPDFCompleto(arrayBuffer) {
+        try {
+            pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            pdfNumPaginas = pdfDoc.numPages;
+            pdfPaginaAtual = 1;
+            estaLendoPdf = true;
+            atualizarStatusPDF(`Carregado: ${pdfNumPaginas} páginas`);
+            
+            // Extrai todo o texto para fatias
+            let textoCompleto = "";
+            for (let i = 1; i <= pdfNumPaginas; i++) {
+                const pagina = await pdfDoc.getPage(i);
+                const conteudo = await pagina.getTextContent();
+                textoCompleto += conteudo.items.map(item => item.str).join(" ") + "\n";
+            }
+            pdfFatias = fatiarTexto(textoCompleto, 30000);
+            indiceFatiaAtual = 0;
+            atualizarStatusPDF(`${pdfNumPaginas} páginas, ${pdfFatias.length} fatias`);
+            return true;
+        } catch(e) {
+            console.error(e);
+            return false;
+        }
+    }
+
+    function fatiarTexto(texto, tamanhoMax) {
+        const palavras = texto.split(' ');
+        const fatias = [];
+        let atual = '';
+        for (let p of palavras) {
+            if ((atual + p).length > tamanhoMax) {
+                fatias.push(atual.trim());
+                atual = p + ' ';
+            } else {
+                atual += p + ' ';
+            }
+        }
+        if (atual.trim()) fatias.push(atual.trim());
+        return fatias;
+    }
+
+    async function lerPaginaPDF(paginaNum, modo = 'leitura') {
+        if (!pdfDoc || paginaNum < 1 || paginaNum > pdfNumPaginas) return false;
+        const pagina = await pdfDoc.getPage(paginaNum);
+        const conteudo = await pagina.getTextContent();
+        const texto = conteudo.items.map(item => item.str).join(' ');
+        
+        let prompt;
+        if (modo === 'especialista') {
+            prompt = `[LEITURA_ESPECIALISTA] Página ${paginaNum} do PDF:\n${texto}\n\nNarre este conteúdo como um documentário dramático.`;
+        } else if (modo === 'leitura') {
+            prompt = `[LEITURA_PURA_DO_PDF] - Página ${paginaNum}:\n${texto}`;
+        } else {
+            prompt = `[CONTINUAÇÃO DO PDF] - Página ${paginaNum}:\n${texto}\n\nFaça uma análise detalhada.`;
+        }
+        
+        exibirRespostaJarvis(`📄 Lendo página ${paginaNum}...`, false);
+        historicoConversa.push({ role: "user", content: prompt });
+        // Chama IA para processar
+        await chamarIA();
+        return true;
+    }
+
+    async function enviarFatiaPDF(modoLeitura = false) {
+        if (indiceFatiaAtual >= pdfFatias.length) {
+            exibirRespostaJarvis("Fim do documento. Todas as fatias foram lidas.");
+            estaLendoPdf = false;
+            atualizarStatusPDF("Finalizado");
+            return;
+        }
+        const textoFatia = pdfFatias[indiceFatiaAtual];
+        indiceFatiaAtual++;
+        atualizarStatusPDF(`Fatia ${indiceFatiaAtual}/${pdfFatias.length}`);
+        
+        let prompt;
+        if (modoLeitura) {
+            prompt = `[LEITURA_PURA_DO_PDF] - Fatia ${indiceFatiaAtual} de ${pdfFatias.length}\n\nConteúdo:\n${textoFatia}`;
+        } else {
+            prompt = `[CONTINUAÇÃO DO PDF] - Fatia ${indiceFatiaAtual} de ${pdfFatias.length}\n\nConteúdo:\n${textoFatia}\n\nFaça uma análise detalhada e inteligente.`;
+        }
+        historicoConversa.push({ role: "user", content: prompt });
+        await chamarIA();
+    }
+
+    // ==================== COMANDOS OFFLINE ====================
     function processarComandoOffline(texto) {
         const cmd = texto.toLowerCase();
-        // Horas
         if (cmd.includes('que horas são')) {
             const agora = new Date();
             return `${agora.getHours()}:${String(agora.getMinutes()).padStart(2,'0')}`;
         }
-        // Data
         if (cmd.includes('que dia é hoje')) {
             const hoje = new Date();
             return `${hoje.getDate()}/${hoje.getMonth()+1}/${hoje.getFullYear()}`;
         }
-        // Piada
         if (cmd === 'conte uma piada') {
             return piadas[Math.floor(Math.random() * piadas.length)];
         }
-        // Diário
         if (cmd.startsWith('registrar diário')) {
             let nota = texto.replace(/registrar diário/i, '').trim();
             if (!nota) return "Escreva algo para registrar.";
@@ -106,18 +204,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!dbMemoriaLocal.diario.length) return "Diário vazio.";
             return "<b>Diário:</b><br>" + dbMemoriaLocal.diario.join("<br>");
         }
-        // Flashcard
         if (cmd === 'flashcard') {
             const card = dbMemoriaLocal.flashcards[Math.floor(Math.random() * dbMemoriaLocal.flashcards.length)];
             return `<b>Flashcard:</b> ${card.q}`;
         }
-        // Matérias (geografia, historia, etc)
         for (let materia in dbMemoriaLocal) {
             if (cmd === materia && dbMemoriaLocal[materia].length) {
                 return `<b>${materia.toUpperCase()}</b><br>${dbMemoriaLocal[materia].slice(0,5).join('<br>')}`;
             }
         }
-        // Matemática simples (expressões)
+        // Matemática simples
         try {
             const mathMatch = texto.match(/[\d\s\+\-\*\/\(\)\.\,\^\%]+/);
             if (mathMatch && !/[a-zA-Z]/.test(mathMatch[0])) {
@@ -126,81 +222,121 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!isNaN(result)) return `Resultado: ${result}`;
             }
         } catch(e) {}
-        
-        return null; // não tratado offline
+        return null;
     }
 
-    // Função principal de envio
-    async function enviarMensagem() {
-        const texto = userInput.value.trim();
-        if (!texto) return;
-
-        // Exibe mensagem do usuário
-        exibirMensagemUsuario(texto);
-        userInput.value = '';
-        
-        // Processa offline
-        let resposta = processarComandoOffline(texto);
-        if (resposta) {
-            exibirRespostaJarvis(resposta);
-            return;
-        }
-        
-        // Se chegou aqui, precisa de IA (backend)
-        exibirRespostaJarvis("⏳ Processando sua solicitação... (modo online)", false);
-        
-        // Mostrar indicador de digitação (opcional)
+    // ==================== IA (BACKEND) ====================
+    async function chamarIA() {
         const typingDiv = document.getElementById('typingIndicator');
         if (typingDiv) typingDiv.style.display = 'flex';
-        
         try {
-            const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-                ? 'http://localhost:5000/'
-                : 'https://jarvis-backend-pm7w.onrender.com/';
-                
-            const respostaIA = await fetch(`${BACKEND_URL}api/comando`, {
+            const response = await fetch(`${BACKEND_URL}api/comando`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     historico: historicoConversa.slice(-20),
-                    modo_especialista: false 
+                    modo_especialista: modoEspecialista 
                 })
             });
-            const data = await respostaIA.json();
+            const data = await response.json();
             if (typingDiv) typingDiv.style.display = 'none';
-            // Remove a mensagem de "Processando..." e coloca a resposta real
-            const ultimaMsg = chatBox.querySelector('.jarvis-msg:last-child');
-            if (ultimaMsg && ultimaMsg.innerText.includes('Processando')) {
-                ultimaMsg.remove();
-            }
-            exibirRespostaJarvis(data.resposta || "Desculpe, não consegui processar.");
-        } catch (erro) {
+            exibirRespostaJarvis(data.resposta || "Sem resposta da IA.");
+        } catch (error) {
             if (typingDiv) typingDiv.style.display = 'none';
-            const ultimaMsg = chatBox.querySelector('.jarvis-msg:last-child');
-            if (ultimaMsg && ultimaMsg.innerText.includes('Processando')) {
-                ultimaMsg.remove();
-            }
-            exibirRespostaJarvis("Erro de conexão com o servidor. Verifique se o backend está rodando.\n\nDica: use comandos offline como 'que horas são', 'geografia', 'conte uma piada'.");
+            exibirRespostaJarvis("Erro ao conectar com o servidor. Verifique o backend ou use comandos offline.");
         }
     }
 
-    // Configurar eventos
-    sendBtn.addEventListener('click', enviarMensagem);
-    userInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            enviarMensagem();
-        }
-    });
+    // ==================== ENVIO PRINCIPAL ====================
+    async function enviarMensagem() {
+        const texto = userInput.value.trim();
+        if (!texto) return;
 
-    // Microfone (se suportado)
+        exibirMensagemUsuario(texto);
+        userInput.value = '';
+        
+        const cmd = texto.toLowerCase();
+
+        // Comandos de controle de PDF
+        if (estaLendoPdf) {
+            if (cmd === 'próxima página') {
+                if (pdfDoc && pdfPaginaAtual < pdfNumPaginas) {
+                    pdfPaginaAtual++;
+                    await lerPaginaPDF(pdfPaginaAtual, 'analise');
+                    atualizarStatusPDF(`Página ${pdfPaginaAtual}/${pdfNumPaginas}`);
+                } else {
+                    exibirRespostaJarvis("Já está na última página.");
+                }
+                return;
+            }
+            if (cmd === 'página anterior') {
+                if (pdfDoc && pdfPaginaAtual > 1) {
+                    pdfPaginaAtual--;
+                    await lerPaginaPDF(pdfPaginaAtual, 'analise');
+                    atualizarStatusPDF(`Página ${pdfPaginaAtual}/${pdfNumPaginas}`);
+                } else {
+                    exibirRespostaJarvis("Já está na primeira página.");
+                }
+                return;
+            }
+            if (cmd === 'modo especialista') {
+                modoEspecialista = true;
+                if (pdfDoc) {
+                    await lerPaginaPDF(pdfPaginaAtual, 'especialista');
+                } else {
+                    exibirRespostaJarvis("Nenhum PDF carregado.");
+                }
+                return;
+            }
+            if (cmd === 'continue' || cmd === 'continuar') {
+                await enviarFatiaPDF(false);
+                return;
+            }
+            if (cmd === 'leia') {
+                await enviarFatiaPDF(true);
+                return;
+            }
+        }
+
+        // Comandos offline gerais
+        let respostaOffline = processarComandoOffline(texto);
+        if (respostaOffline) {
+            exibirRespostaJarvis(respostaOffline, true, true);
+            return;
+        }
+
+        // Se não for offline e não for comando de PDF, manda para IA
+        historicoConversa.push({ role: "user", content: texto });
+        await chamarIA();
+    }
+
+    // ==================== UPLOAD DE PDF ====================
+    async function arquivoSelecionado() {
+        if (!fileInput || !fileInput.files.length) return;
+        const arquivo = fileInput.files[0];
+        if (arquivo.type !== 'application/pdf') {
+            exibirRespostaJarvis("Por favor, envie um arquivo PDF válido.");
+            fileInput.value = '';
+            return;
+        }
+        exibirMensagemUsuario(`📎 Enviou o PDF: ${arquivo.name}`);
+        const arrayBuffer = await arquivo.arrayBuffer();
+        const sucesso = await carregarPDFCompleto(arrayBuffer);
+        if (sucesso) {
+            exibirRespostaJarvis(`✅ PDF carregado: ${pdfNumPaginas} páginas, ${pdfFatias.length} fatias.\nUse "continue" para análise ou "leia" para texto puro.\nNavegue com "próxima página".`);
+        } else {
+            exibirRespostaJarvis("Falha ao processar o PDF. Tente novamente.");
+        }
+        fileInput.value = '';
+    }
+
+    // ==================== MICROFONE ====================
     if (window.SpeechRecognition || window.webkitSpeechRecognition) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        reconhecimento = new SpeechRecognition();
+        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+        reconhecimento = new SpeechRecognitionAPI();
         reconhecimento.lang = 'pt-BR';
         reconhecimento.continuous = false;
         reconhecimento.interimResults = false;
-        
         reconhecimento.onresult = (event) => {
             const texto = event.results[0][0].transcript.trim();
             userInput.value = texto;
@@ -213,7 +349,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             gravando = false;
         };
-        
         if (micBtn) {
             micBtn.addEventListener('click', () => {
                 if (gravando) {
@@ -226,16 +361,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-    } else {
-        if (micBtn) micBtn.style.display = 'none';
+    } else if (micBtn) {
+        micBtn.style.display = 'none';
     }
 
-    // Sidebar toggle (se existirem os botões)
+    // ==================== EVENTOS E UI ====================
+    sendBtn.addEventListener('click', enviarMensagem);
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
+    if (fileInput) fileInput.addEventListener('change', arquivoSelecionado);
+    
+    // Sidebar toggle (se existir)
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
     const closeSidebar = document.getElementById('closeSidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    
     if (menuToggle && sidebar) {
         menuToggle.addEventListener('click', () => {
             sidebar.classList.add('open');
@@ -255,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Bateria (opcional)
+    // Bateria
     if (document.getElementById('batteryStatus')) {
         if ('getBattery' in navigator) {
             navigator.getBattery().then(b => {
@@ -267,6 +406,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Mensagem de boas-vindas
-    exibirRespostaJarvis("Sistemas online! Agora com raciocínio local. Pergunte sobre geografia, história, matemática ou use 'conte uma piada'.", false);
+    // Mensagem inicial
+    exibirRespostaJarvis("Sistemas online! PDF funcionando. Envie um PDF e use 'continue' para analisar, 'leia' para texto puro, ou 'próxima página' para navegar.", false);
 });
