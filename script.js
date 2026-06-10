@@ -1,389 +1,272 @@
-// ==================== CONFIGURAÇÃO GLOBAL ====================
-if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-}
+// ==================== JARVIS - VERSÃO ESTÁVEL ====================
+// Inicialização segura
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('JARVIS iniciado');
 
-// Estado
-let pdfDoc = null;
-let pdfPaginaAtual = 1;
-let pdfNumPaginas = 0;
-let pdfFatias = [];
-let indiceFatiaAtual = 0;
-let estaLendoPdf = false;
-let modoSilencio = false;
-let ranzinzaGravando = false;
-let falandoAgora = false;
-let reconhecimento;
-let historicoConversa = [];
-let lembretes = JSON.parse(localStorage.getItem('jarvis_lembretes')) || [];
-let darkMode = true;
+    // Elementos do DOM
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
 
-// URLs
-const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-    ? 'http://localhost:5000/'
-    : 'https://jarvis-backend-pm7w.onrender.com/';
+    // Verificação crítica
+    if (!sendBtn || !userInput || !chatBox) {
+        console.error('Elementos do chat não encontrados!');
+        alert('Erro: elementos do chat não encontrados. Recarregue a página.');
+        return;
+    }
 
-// Banco de memória expandido
-let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
-    "geografia": ["Brasil: Brasília (DF). População ~214M.", "EUA: Washington D.C.", "França: Paris.", "Japão: Tóquio."],
-    "historia": ["Independência do Brasil: 1822.", "Revolução Francesa: 1789.", "1ª Guerra: 1914-1918.", "2ª Guerra: 1939-1945."],
-    "quimica": ["Água: H2O - 18g/mol.", "Sal: NaCl - 58,44g/mol.", "Gás carbônico: CO2."],
-    "fisica": ["Velocidade média = Δs/Δt.", "Força = m·a.", "Energia cinética = (m·v²)/2."],
-    "biologia": ["Células: unidade básica.", "Fotossíntese: plantas.", "DNA: código genético."],
-    "matematica": ["Pitágoras: a²=b²+c².", "Área círculo: πr².", "Regra de três."],
-    "programacao": ["Python, JS, Java, C++.", "HTML/CSS."],
-    "filosofia": ["Sócrates: 'Conhece-te a ti mesmo'.", "Platão, Aristóteles, Nietzsche."],
-    "portugues": ["Mas x Mais.", "Por que/Porque.", "Sujeito e predicado."],
-    "diario": [],
-    "flashcards": [{ q: "Capital do Brasil?", r: "Brasília" }]
-};
+    // Estado
+    let modoSilencio = false;
+    let historicoConversa = [];
+    let reconhecimento = null;
+    let gravando = false;
 
-const frasesRanzinzas = ["Processando...", "Comando recebido.", "Analisando dados."];
-const piadas = ["Por que o programador foi ao mercado? Por bytes!", "O que o zero disse ao oito? Bonito cinto!"];
-
-// ==================== VOZ ====================
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (SpeechRecognition) {
-    reconhecimento = new SpeechRecognition();
-    reconhecimento.lang = 'pt-BR';
-    reconhecimento.continuous = false;
-    reconhecimento.onresult = (e) => {
-        let texto = e.results[0][0].transcript.trim();
-        if (texto.toLowerCase().startsWith("jarvis")) {
-            let cmd = texto.replace(/^jarvis/i, "").trim();
-            if (cmd) document.getElementById('userInput').value = cmd;
-            enviarMensagem();
-        } else if (ranzinzaGravando) {
-            document.getElementById('userInput').value = texto;
-            enviarMensagem();
-        }
+    // Banco de memória local (expandido)
+    let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
+        "geografia": ["Brasil: Brasília. População ~214M.", "EUA: Washington D.C.", "França: Paris.", "Japão: Tóquio."],
+        "historia": ["Independência do Brasil: 1822.", "Revolução Francesa: 1789.", "1ª Guerra: 1914-1918.", "2ª Guerra: 1939-1945."],
+        "quimica": ["Água: H2O - 18g/mol.", "Sal: NaCl - 58,44g/mol."],
+        "fisica": ["Velocidade média = Δs/Δt.", "Força = m·a.", "Energia cinética = (m·v²)/2."],
+        "matematica": ["Pitágoras: a²=b²+c².", "Área círculo: πr².", "Regra de três."],
+        "programacao": ["Python, JS, Java, C++.", "HTML/CSS."],
+        "filosofia": ["Sócrates: 'Conhece-te a ti mesmo'.", "Platão, Aristóteles."],
+        "portugues": ["Mas x Mais.", "Por que/Porque."],
+        "diario": [],
+        "flashcards": [{ q: "Capital do Brasil?", r: "Brasília" }]
     };
-    reconhecimento.onend = () => {
-        let btn = document.getElementById('micBtn');
-        if (ranzinzaGravando) {
-            ranzinzaGravando = false;
-            if (btn) {
-                btn.classList.remove('gravando');
-                btn.innerHTML = '<i class="fas fa-microphone"></i>';
+
+    const piadas = [
+        "Por que o programador foi ao mercado? Porque precisava de um par de bytes!",
+        "O que o zero disse para o oito? Bonito cinto!",
+        "Qual o cúmulo do preguiçoso? Ser enterrado numa montanha de documentos.",
+        "Por que o livro de matemática é triste? Porque tem muitos problemas."
+    ];
+
+    // Função para exibir mensagem do JARVIS
+    function exibirRespostaJarvis(resposta, falarTexto = true) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'balao jarvis-msg';
+        msgDiv.innerHTML = `<div class="avatar"><i class="fas fa-robot"></i></div>
+                            <div class="message-content">
+                                <span class="sender-name">JARVIS</span>
+                                <p>${resposta.replace(/\n/g, '<br>')}</p>
+                            </div>`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        historicoConversa.push({ role: "assistant", content: resposta });
+        if (falarTexto && !modoSilencio) {
+            const utterance = new SpeechSynthesisUtterance(resposta.replace(/<[^>]*>/g, ''));
+            utterance.lang = 'pt-BR';
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // Função para exibir mensagem do usuário
+    function exibirMensagemUsuario(texto) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'balao user-msg';
+        msgDiv.innerHTML = `<div class="avatar"><i class="fas fa-user"></i></div>
+                            <div class="message-content">
+                                <span class="sender-name">Você</span>
+                                <p>${texto.replace(/</g, '&lt;')}</p>
+                            </div>`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        historicoConversa.push({ role: "user", content: texto });
+    }
+
+    // Processamento offline (comandos)
+    function processarComandoOffline(texto) {
+        const cmd = texto.toLowerCase();
+        // Horas
+        if (cmd.includes('que horas são')) {
+            const agora = new Date();
+            return `${agora.getHours()}:${String(agora.getMinutes()).padStart(2,'0')}`;
+        }
+        // Data
+        if (cmd.includes('que dia é hoje')) {
+            const hoje = new Date();
+            return `${hoje.getDate()}/${hoje.getMonth()+1}/${hoje.getFullYear()}`;
+        }
+        // Piada
+        if (cmd === 'conte uma piada') {
+            return piadas[Math.floor(Math.random() * piadas.length)];
+        }
+        // Diário
+        if (cmd.startsWith('registrar diário')) {
+            let nota = texto.replace(/registrar diário/i, '').trim();
+            if (!nota) return "Escreva algo para registrar.";
+            dbMemoriaLocal.diario.push(`${new Date().toLocaleDateString()}: ${nota}`);
+            localStorage.setItem('jarvis_memoria_v3', JSON.stringify(dbMemoriaLocal));
+            return "Diário registrado com sucesso.";
+        }
+        if (cmd === 'ler diário') {
+            if (!dbMemoriaLocal.diario.length) return "Diário vazio.";
+            return "<b>Diário:</b><br>" + dbMemoriaLocal.diario.join("<br>");
+        }
+        // Flashcard
+        if (cmd === 'flashcard') {
+            const card = dbMemoriaLocal.flashcards[Math.floor(Math.random() * dbMemoriaLocal.flashcards.length)];
+            return `<b>Flashcard:</b> ${card.q}`;
+        }
+        // Matérias (geografia, historia, etc)
+        for (let materia in dbMemoriaLocal) {
+            if (cmd === materia && dbMemoriaLocal[materia].length) {
+                return `<b>${materia.toUpperCase()}</b><br>${dbMemoriaLocal[materia].slice(0,5).join('<br>')}`;
             }
         }
-    };
-}
-
-function alternarVoz() {
-    if (!SpeechRecognition) return alert("Microfone não suportado.");
-    let btn = document.getElementById('micBtn');
-    if (ranzinzaGravando) {
-        reconhecimento.stop();
-        if (btn) {
-            btn.classList.remove('gravando');
-            btn.innerHTML = '<i class="fas fa-microphone"></i>';
-        }
-        ranzinzaGravando = false;
-    } else {
-        reconhecimento.start();
-        if (btn) {
-            btn.classList.add('gravando');
-            btn.innerHTML = '<i class="fas fa-stop"></i>';
-        }
-        ranzinzaGravando = true;
+        // Matemática simples (expressões)
+        try {
+            const mathMatch = texto.match(/[\d\s\+\-\*\/\(\)\.\,\^\%]+/);
+            if (mathMatch && !/[a-zA-Z]/.test(mathMatch[0])) {
+                let expr = mathMatch[0].replace(/,/g, '.').replace(/\^/g, '**');
+                let result = eval(expr);
+                if (!isNaN(result)) return `Resultado: ${result}`;
+            }
+        } catch(e) {}
+        
+        return null; // não tratado offline
     }
-}
 
-function falar(texto) {
-    if (modoSilencio) return;
-    if (falandoAgora) window.speechSynthesis.cancel();
-    let utterance = new SpeechSynthesisUtterance(texto.replace(/<[^>]*>/g, ''));
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.0;
-    utterance.pitch = 0.9;
-    utterance.onstart = () => falandoAgora = true;
-    utterance.onend = () => falandoAgora = false;
-    window.speechSynthesis.speak(utterance);
-}
+    // Função principal de envio
+    async function enviarMensagem() {
+        const texto = userInput.value.trim();
+        if (!texto) return;
 
-function exibirRespostaLocal(resposta, chatBox, falarResposta = true) {
-    setTimeout(() => {
-        let humor = frasesRanzinzas[Math.floor(Math.random() * frasesRanzinzas.length)];
-        let avatar = '<i class="fas fa-robot"></i>';
-        let nome = "JARVIS";
-        let bubbleClass = "jarvis-msg";
-        let final = `<b>${humor}</b><br>${resposta}`;
-        chatBox.innerHTML += `<div class="balao ${bubbleClass}"><div class="avatar">${avatar}</div><div class="message-content"><span class="sender-name">${nome}</span><p>${final}</p></div></div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-        if (falarResposta) falar(resposta);
-    }, 100);
-}
-
-// ==================== RACIOCÍNIO LOCAL ====================
-function processarRaciocinioLocal(comando) {
-    try {
-        let mathExpr = comando.match(/[\d\s\+\-\*\/\(\)\.\,\^\%]+/);
-        if (mathExpr && !comando.match(/[a-z]/i)) {
-            let expr = mathExpr[0].replace(/,/g, '.').replace(/\^/g, '**');
-            let result = eval(expr);
-            if (!isNaN(result)) return `Resultado: ${result}`;
+        // Exibe mensagem do usuário
+        exibirMensagemUsuario(texto);
+        userInput.value = '';
+        
+        // Processa offline
+        let resposta = processarComandoOffline(texto);
+        if (resposta) {
+            exibirRespostaJarvis(resposta);
+            return;
         }
-    } catch(e) {}
-    let kmMatch = comando.match(/(\d+)\s*km\s*para\s*m(?:etros)?/i);
-    if (kmMatch) return `${kmMatch[1]} km = ${kmMatch[1] * 1000} metros.`;
-    let celsiusMatch = comando.match(/(\d+)\s*°?\s*c(elsius)?\s*para\s*f(ahrenheit)?/i);
-    if (celsiusMatch) {
-        let c = parseFloat(celsiusMatch[1]);
-        let f = (c * 9/5) + 32;
-        return `${c}°C = ${f.toFixed(1)}°F.`;
-    }
-    for (let materia in dbMemoriaLocal) {
-        if (comando.includes(materia) && dbMemoriaLocal[materia].length) {
-            let dados = dbMemoriaLocal[materia].slice(0,5);
-            return `<b>${materia.toUpperCase()}</b><br>${dados.join('<br>')}`;
+        
+        // Se chegou aqui, precisa de IA (backend)
+        exibirRespostaJarvis("⏳ Processando sua solicitação... (modo online)", false);
+        
+        // Mostrar indicador de digitação (opcional)
+        const typingDiv = document.getElementById('typingIndicator');
+        if (typingDiv) typingDiv.style.display = 'flex';
+        
+        try {
+            const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                ? 'http://localhost:5000/'
+                : 'https://jarvis-backend-pm7w.onrender.com/';
+                
+            const respostaIA = await fetch(`${BACKEND_URL}api/comando`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    historico: historicoConversa.slice(-20),
+                    modo_especialista: false 
+                })
+            });
+            const data = await respostaIA.json();
+            if (typingDiv) typingDiv.style.display = 'none';
+            // Remove a mensagem de "Processando..." e coloca a resposta real
+            const ultimaMsg = chatBox.querySelector('.jarvis-msg:last-child');
+            if (ultimaMsg && ultimaMsg.innerText.includes('Processando')) {
+                ultimaMsg.remove();
+            }
+            exibirRespostaJarvis(data.resposta || "Desculpe, não consegui processar.");
+        } catch (erro) {
+            if (typingDiv) typingDiv.style.display = 'none';
+            const ultimaMsg = chatBox.querySelector('.jarvis-msg:last-child');
+            if (ultimaMsg && ultimaMsg.innerText.includes('Processando')) {
+                ultimaMsg.remove();
+            }
+            exibirRespostaJarvis("Erro de conexão com o servidor. Verifique se o backend está rodando.\n\nDica: use comandos offline como 'que horas são', 'geografia', 'conte uma piada'.");
         }
     }
-    return null;
-}
 
-function verificarRegrasLocais(cmd, original) {
-    if (cmd.includes("que horas são")) {
-        let agora = new Date();
-        return `${agora.getHours()}:${String(agora.getMinutes()).padStart(2,'0')}`;
-    }
-    if (cmd.includes("que dia é hoje")) {
-        let hoje = new Date();
-        return `${hoje.getDate()}/${hoje.getMonth()+1}/${hoje.getFullYear()}`;
-    }
-    if (cmd.startsWith("registrar diário")) {
-        let nota = original.replace(/registrar diário/i, "").trim();
-        if (!nota) return "Escreva algo.";
-        dbMemoriaLocal.diario.push(`${new Date().toLocaleDateString()}: ${nota}`);
-        localStorage.setItem('jarvis_memoria_v3', JSON.stringify(dbMemoriaLocal));
-        return "Diário registrado.";
-    }
-    if (cmd === "ler diário") {
-        if (!dbMemoriaLocal.diario.length) return "Diário vazio.";
-        return "<b>Diário:</b><br>" + dbMemoriaLocal.diario.join("<br>");
-    }
-    if (cmd === "flashcard") {
-        let card = dbMemoriaLocal.flashcards[Math.floor(Math.random() * dbMemoriaLocal.flashcards.length)];
-        return `<b>Flashcard:</b> ${card.q}`;
-    }
-    if (cmd === "conte uma piada") {
-        return piadas[Math.floor(Math.random() * piadas.length)];
-    }
-    if (cmd === "bateria") {
-        mostrarBateria(true);
-        return null; // será tratado pelo mostrarBateria
-    }
-    if (cmd === "salvar conversa") {
-        salvarConversaPDF();
-        return "Conversa salva em PDF.";
-    }
-    if (cmd === "silêncio") {
-        modoSilencio = true;
-        return "Modo silêncio ativado.";
-    }
-    if (cmd === "volte a falar") {
-        modoSilencio = false;
-        return "Modo áudio reativado.";
-    }
-    return null;
-}
-
-// ==================== ENVIO DE MENSAGEM (CORRIGIDO) ====================
-function enviarMensagem() {
-    let input = document.getElementById('userInput');
-    let chatBox = document.getElementById('chatBox');
-    let texto = input.value.trim();
-    if (!texto) return;
-
-    // Mostrar mensagem do usuário
-    chatBox.innerHTML += `<div class="balao user-msg"><div class="avatar"><i class="fas fa-user"></i></div><div class="message-content"><span class="sender-name">Você</span><p>${texto.replace(/</g, '&lt;')}</p></div></div>`;
-    input.value = "";
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    let cmd = texto.toLowerCase();
-
-    // 1. Comandos offline imediatos
-    let respostaOffline = verificarRegrasLocais(cmd, texto);
-    if (respostaOffline) {
-        exibirRespostaLocal(respostaOffline, chatBox);
-        return;
-    }
-
-    // 2. Raciocínio matemático/ciências offline
-    let respostaLocal = processarRaciocinioLocal(cmd);
-    if (respostaLocal) {
-        exibirRespostaLocal(respostaLocal, chatBox);
-        return;
-    }
-
-    // 3. Se não, chama IA (back-end)
-    let typingIndicator = document.getElementById('typingIndicator');
-    if (typingIndicator) typingIndicator.style.display = 'flex';
-    
-    let comandoComMemoria = `Comando: ${texto}\n\nMemórias: ${JSON.stringify(dbMemoriaLocal)}`;
-    historicoConversa.push({ role: "user", content: comandoComMemoria });
-    if (historicoConversa.length > 30) historicoConversa = historicoConversa.slice(-30);
-
-    fetch(`${BACKEND_URL}api/comando`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ historico: historicoConversa, modo_especialista: false })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (typingIndicator) typingIndicator.style.display = 'none';
-        let resposta = data.resposta || "Erro na resposta da IA.";
-        chatBox.innerHTML += `<div class="balao jarvis-msg"><div class="avatar"><i class="fas fa-robot"></i></div><div class="message-content"><span class="sender-name">JARVIS</span><p>${resposta}</p></div></div>`;
-        historicoConversa.push({ role: "assistant", content: resposta });
-        chatBox.scrollTop = chatBox.scrollHeight;
-        falar(resposta);
-        if (data.imagem_url) {
-            chatBox.innerHTML += `<div class="balao jarvis-msg"><div class="avatar"><i class="fas fa-image"></i></div><div class="message-content"><span class="sender-name">JARVIS</span><p><img src="${data.imagem_url}" style="max-width:100%; border-radius:12px;"></p></div></div>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
+    // Configurar eventos
+    sendBtn.addEventListener('click', enviarMensagem);
+    userInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            enviarMensagem();
         }
-    })
-    .catch(err => {
-        if (typingIndicator) typingIndicator.style.display = 'none';
-        console.error(err);
-        exibirRespostaLocal("Erro de conexão com o núcleo neural. Verifique o backend.", chatBox);
     });
-}
 
-// ==================== PDF, OCR, QR, BATERIA, PDF CHAT ====================
-// Funções simplificadas mas funcionais (você pode expandir depois)
-function arquivoSelecionado() {
-    let fileInput = document.getElementById('fileInput');
-    let arquivo = fileInput.files[0];
-    if (!arquivo) return;
-    let chatBox = document.getElementById('chatBox');
-    chatBox.innerHTML += `<div class="balao user-msg"><div class="avatar"><i class="fas fa-user"></i></div><div class="message-content"><span class="sender-name">Você</span><p>📎 Arquivo: ${arquivo.name}</p></div></div>`;
-    exibirRespostaLocal("Funcionalidade de PDF/OCR disponível na versão completa. Por favor, use o comando 'continue' ou 'leia' para PDFs carregados anteriormente.", chatBox);
-    fileInput.value = '';
-}
-
-function abrirCameraOCR() {
-    exibirRespostaLocal("OCR será implementado em breve. Por enquanto, use o envio de imagem pelo botão de anexo.", document.getElementById('chatBox'));
-}
-
-function abrirCameraQR() {
-    exibirRespostaLocal("Leitura de QR Code em desenvolvimento.", document.getElementById('chatBox'));
-}
-
-function salvarConversaPDF() {
-    if (typeof window.jspdf === 'undefined') {
-        alert("jsPDF não carregado. Aguarde e tente novamente.");
-        return;
-    }
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    let y = 10;
-    doc.text("Conversa com JARVIS", 10, y);
-    y += 7;
-    historicoConversa.forEach(msg => {
-        let role = msg.role === "user" ? "Você" : "JARVIS";
-        let linhas = doc.splitTextToSize(`${role}: ${msg.content.substring(0, 500)}`, 180);
-        linhas.forEach(l => {
-            if (y > 280) { doc.addPage(); y = 10; }
-            doc.text(l, 10, y);
-            y += 6;
-        });
-        y += 3;
-    });
-    doc.save(`jarvis_${Date.now()}.pdf`);
-    exibirRespostaLocal("Conversa salva em PDF.", document.getElementById('chatBox'));
-}
-
-function mostrarBateria(falar = false) {
-    if ('getBattery' in navigator) {
-        navigator.getBattery().then(b => {
-            let lvl = Math.round(b.level * 100);
-            let txt = `Bateria: ${lvl}%${b.charging ? " (carregando)" : ""}`;
-            let batteryDiv = document.getElementById('batteryStatus');
-            if (batteryDiv) batteryDiv.innerHTML = `<i class="fas fa-battery-full"></i> ${txt}`;
-            if (falar) exibirRespostaLocal(txt, document.getElementById('chatBox'));
-        });
+    // Microfone (se suportado)
+    if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        reconhecimento = new SpeechRecognition();
+        reconhecimento.lang = 'pt-BR';
+        reconhecimento.continuous = false;
+        reconhecimento.interimResults = false;
+        
+        reconhecimento.onresult = (event) => {
+            const texto = event.results[0][0].transcript.trim();
+            userInput.value = texto;
+            enviarMensagem();
+        };
+        reconhecimento.onend = () => {
+            if (micBtn) {
+                micBtn.classList.remove('gravando');
+                micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+            gravando = false;
+        };
+        
+        if (micBtn) {
+            micBtn.addEventListener('click', () => {
+                if (gravando) {
+                    reconhecimento.stop();
+                } else {
+                    reconhecimento.start();
+                    micBtn.classList.add('gravando');
+                    micBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                    gravando = true;
+                }
+            });
+        }
     } else {
-        let batteryDiv = document.getElementById('batteryStatus');
-        if (batteryDiv) batteryDiv.innerHTML = `<i class="fas fa-battery-slash"></i> Não suportado`;
-        if (falar) exibirRespostaLocal("API de bateria não suportada.", document.getElementById('chatBox'));
+        if (micBtn) micBtn.style.display = 'none';
     }
-}
 
-function inserirComando(cmd) {
-    let input = document.getElementById('userInput');
-    if (input) {
-        input.value = cmd;
-        enviarMensagem();
-    }
-}
-
-// ==================== EVENTOS E INICIALIZAÇÃO ====================
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar e overlay
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
+    // Sidebar toggle (se existirem os botões)
     const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
     const closeSidebar = document.getElementById('closeSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
     
-    if (menuToggle) menuToggle.addEventListener('click', () => {
-        if (sidebar) sidebar.classList.add('open');
-        if (overlay) overlay.classList.add('active');
-    });
-    if (closeSidebar) closeSidebar.addEventListener('click', () => {
-        if (sidebar) sidebar.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
-    });
-    if (overlay) overlay.addEventListener('click', () => {
-        if (sidebar) sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-    });
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.add('open');
+            if (overlay) overlay.classList.add('active');
+        });
+    }
+    if (closeSidebar && sidebar) {
+        closeSidebar.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+        });
+    }
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            if (sidebar) sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        });
+    }
     
-    // Botões principais
-    const sendBtn = document.getElementById('sendBtn');
-    if (sendBtn) sendBtn.addEventListener('click', enviarMensagem);
-    
-    const micBtn = document.getElementById('micBtn');
-    if (micBtn) micBtn.addEventListener('click', alternarVoz);
-    
-    const userInput = document.getElementById('userInput');
-    if (userInput) userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
-    
-    const fileInput = document.getElementById('fileInput');
-    if (fileInput) fileInput.addEventListener('change', arquivoSelecionado);
-    
-    const saveChatBtn = document.getElementById('saveChatBtn');
-    if (saveChatBtn) saveChatBtn.addEventListener('click', salvarConversaPDF);
-    
-    const ocrBtn = document.getElementById('ocrImageBtn');
-    if (ocrBtn) ocrBtn.addEventListener('click', abrirCameraOCR);
-    
-    const qrBtn = document.getElementById('qrScanBtn');
-    if (qrBtn) qrBtn.addEventListener('click', abrirCameraQR);
-    
-    const clearChatBtn = document.getElementById('clearChatBtn');
-    if (clearChatBtn) clearChatBtn.addEventListener('click', () => {
-        if (confirm("Limpar toda a conversa?")) {
-            historicoConversa = [];
-            const chatBox = document.getElementById('chatBox');
-            if (chatBox) chatBox.innerHTML = `<div class="balao jarvis-msg"><div class="avatar"><i class="fas fa-robot"></i></div><div class="message-content"><span class="sender-name">JARVIS</span><p>Conversa reiniciada. Como posso ajudar?</p></div></div>`;
+    // Bateria (opcional)
+    if (document.getElementById('batteryStatus')) {
+        if ('getBattery' in navigator) {
+            navigator.getBattery().then(b => {
+                const lvl = Math.round(b.level * 100);
+                document.getElementById('batteryStatus').innerHTML = `<i class="fas fa-battery-full"></i> Bateria: ${lvl}%`;
+            });
+        } else {
+            document.getElementById('batteryStatus').innerHTML = `<i class="fas fa-battery-slash"></i> Bateria: N/D`;
         }
-    });
+    }
     
-    const newChatBtn = document.getElementById('newChatBtn');
-    if (newChatBtn) newChatBtn.addEventListener('click', () => {
-        historicoConversa = [];
-        const chatBox = document.getElementById('chatBox');
-        if (chatBox) chatBox.innerHTML = `<div class="balao jarvis-msg"><div class="avatar"><i class="fas fa-robot"></i></div><div class="message-content"><span class="sender-name">JARVIS</span><p>Nova conversa iniciada.</p></div></div>`;
-    });
-    
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('light-mode');
-        darkMode = !darkMode;
-        themeToggle.innerHTML = darkMode ? '<i class="fas fa-moon"></i> Modo escuro' : '<i class="fas fa-sun"></i> Modo claro';
-    });
-    
-    // Inicializa bateria
-    mostrarBateria(false);
-    setInterval(() => mostrarBateria(false), 60000);
+    // Mensagem de boas-vindas
+    exibirRespostaJarvis("Sistemas online! Agora com raciocínio local. Pergunte sobre geografia, história, matemática ou use 'conte uma piada'.", false);
 });
