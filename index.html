@@ -2,59 +2,87 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>JARVIS - CORE TOTAL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>JARVIS - IA PESSOAL</title>
     <link rel="stylesheet" href="style.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
+    <!-- Ícone de tema claro/escuro -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body>
+<body class="dark-mode">
     <div class="app-container">
-        <aside class="sidebar">
+        <!-- Sidebar flutuante (colapsável) -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>JARVIS OS</h2>
-                <div class="status-online">● CORE TOTAL ATIVO</div>
+                <div class="logo-area">
+                    <i class="fas fa-microchip"></i>
+                    <h2>JARVIS</h2>
+                </div>
+                <button class="close-sidebar" id="closeSidebar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="status-card">
+                <div class="status-led online"></div>
+                <span>CORE HÍBRIDO ATIVO</span>
             </div>
             <div class="sidebar-section">
-                <h3><span class="icon">📂</span> Módulos</h3>
+                <h3><i class="fas fa-database"></i> Memória Local</h3>
                 <div class="module-card" id="pdfStatus">📄 PDF: Inativo</div>
-                <div class="module-card" id="batteryStatus">🔋 Bateria: --</div>
-                <div class="module-card">📝 Diário Local</div>
-                <div class="module-card">🎴 Flashcards</div>
-                <button id="saveChatBtn" class="btn-clear" style="margin-top:8px;">📄 Salvar Conversa em PDF</button>
-                <button id="ocrImageBtn" class="btn-clear" style="margin-top:8px;">📷 Ler Texto de Imagem</button>
-                <button id="qrScanBtn" class="btn-clear" style="margin-top:8px;">📱 Escanear QR Code</button>
+                <div class="module-card" id="batteryStatus"><i class="fas fa-battery-full"></i> Bateria: --</div>
+                <div class="module-card"><i class="fas fa-book"></i> Diário</div>
+                <div class="module-card"><i class="fas fa-layer-group"></i> Flashcards</div>
             </div>
             <div class="sidebar-section">
-                <h3><span class="icon">🧠</span> Comandos Rápidos</h3>
-                <p class="sidebar-text">
-                    • PDF: continue, leia, pausar, próxima página, página anterior, ir para página X, modo especialista<br>
-                    • lembre-me de [tarefa] às [hh:mm]<br>
-                    • conte uma piada<br>
-                    • salvar conversa<br>
-                    • bateria
-                </p>
-                <button class="btn-clear" onclick="window.location.reload()">Limpar Sessão</button>
+                <h3><i class="fas fa-bolt"></i> Comandos Rápidos</h3>
+                <div class="quick-commands">
+                    <span class="cmd-chip" onclick="inserirComando('continue')">continue</span>
+                    <span class="cmd-chip" onclick="inserirComando('leia')">leia</span>
+                    <span class="cmd-chip" onclick="inserirComando('próxima página')">próx página</span>
+                    <span class="cmd-chip" onclick="inserirComando('conte uma piada')">piada</span>
+                    <span class="cmd-chip" onclick="inserirComando('bateria')">bateria</span>
+                </div>
+                <button class="btn-clear" id="clearChatBtn"><i class="fas fa-trash-alt"></i> Limpar conversa</button>
+                <button class="btn-clear" id="saveChatBtn"><i class="fas fa-save"></i> Salvar PDF</button>
+                <button class="btn-clear" id="ocrImageBtn"><i class="fas fa-camera"></i> OCR imagem</button>
+                <button class="btn-clear" id="qrScanBtn"><i class="fas fa-qrcode"></i> QR Code</button>
+            </div>
+            <div class="sidebar-section theme-toggle">
+                <h3><i class="fas fa-palette"></i> Tema</h3>
+                <button id="themeToggle" class="btn-clear"><i class="fas fa-moon"></i> Modo escuro</button>
             </div>
         </aside>
+
         <main class="main-chat">
+            <div class="chat-header">
+                <button id="menuToggle" class="menu-btn"><i class="fas fa-bars"></i></button>
+                <div class="chat-title">JARVIS · <span id="statusText">Online</span></div>
+                <button id="newChatBtn" class="new-chat-btn"><i class="fas fa-plus"></i></button>
+            </div>
             <div class="chat-container" id="chatBox">
                 <div class="balao jarvis-msg">
-                    <span class="sender-name">JARVIS</span>
-                    Sistemas recalibrados. Agora com OCR, QR Code, lembretes e leitura fatiada de PDF. O que vamos fazer?
+                    <div class="avatar"><i class="fas fa-robot"></i></div>
+                    <div class="message-content">
+                        <span class="sender-name">JARVIS</span>
+                        <p>Sistemas reinicializados. Agora com banco de conhecimento offline expandido e raciocínio local aprimorado. Como posso ajudá-lo hoje?</p>
+                    </div>
                 </div>
             </div>
             <div class="input-container">
                 <div class="input-wrapper">
-                    <label for="fileInput" class="btn-icon">📎</label>
+                    <label for="fileInput" class="btn-icon"><i class="fas fa-paperclip"></i></label>
                     <input type="file" id="fileInput" accept="application/pdf,image/*" style="display: none;">
-                    <input type="text" id="userInput" placeholder="Fale ou digite..." autocomplete="off">
+                    <input type="text" id="userInput" placeholder="Mensagem para JARVIS..." autocomplete="off">
+                    <button id="micBtn" class="mic-btn"><i class="fas fa-microphone"></i></button>
                 </div>
-                <button class="btn-round" id="micBtn" onclick="alternarVoz()">🎙️</button>
-                <button class="btn-round" id="sendBtn" onclick="enviarMensagem()">➤</button>
+                <button id="sendBtn" class="send-btn"><i class="fas fa-paper-plane"></i></button>
             </div>
+            <div class="typing-indicator" id="typingIndicator">JARVIS está digitando<span>.</span><span>.</span><span>.</span></div>
         </main>
     </div>
+
+    <!-- Bibliotecas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
