@@ -11,6 +11,7 @@ let estaLendoPdf = false;
 let modoSilencio = false; 
 let ranzinzaGravando = false;
 let reconhecimento;
+let historicoConversa = []; 
 
 const frasesRanzinzas = [
     "Sério que você precisa de ajuda para isso? Que merda. Tá bom...",
@@ -110,9 +111,11 @@ function enviarMensagem() {
             estaLendoPdf = false;
             return;
         }
-        let textoParaEnviar = `Contexto do PDF (Fatia ${indiceFatiaAtual + 1}):\n\n${pdfFatias[indiceFatiaAtual]}`;
+        let textoParaEnviar = `LEIA O TEXTO ABAIXO DO PDF (Fatia ${indiceFatiaAtual + 1} de ${pdfFatias.length}). FAÇA UM RESUMO COMPLETO E DETALHADO DO QUE ACONTECE AQUI:\n\n${pdfFatias[indiceFatiaAtual]}`;
         indiceFatiaAtual++;
-        acionarCerebroNuvem(textoParaEnviar, chatBox);
+        
+        historicoConversa.push({"role": "user", "content": textoParaEnviar});
+        acionarCerebroNuvem(chatBox);
         return;
     }
 
@@ -120,9 +123,16 @@ function enviarMensagem() {
     if (respostaOffline !== null) {
         exibirRespostaLocal(respostaOffline, chatBox);
     } else {
-        // Envia o comando estruturado isolando o texto das memórias
         let comandoFormatado = `Comando do Usuário: ${texto}\n\n---MEMORIAS_LOCAIS---\n${JSON.stringify(dbMemoriaLocal)}`;
-        acionarCerebroNuvem(comandoFormatado, chatBox);
+        
+        historicoConversa.push({"role": "user", "content": comandoFormatado});
+        
+        let tamanhoEstimado = JSON.stringify(historicoConversa).length;
+        if (tamanhoEstimado > 80000) { 
+            chatBox.innerHTML += `<div class="balao jarvis-msg" style="border: 1px solid red; background: #2a1111;"><span class="sender-name">SISTEMA</span>⚠️ Histórico muito longo! Recomendo reiniciar a página para limpar os tokens.</div>`;
+        }
+
+        acionarCerebroNuvem(chatBox);
     }
 }
 
@@ -136,14 +146,14 @@ function exibirRespostaLocal(resposta, chatBox) {
     }, 400);
 }
 
-function acionarCerebroNuvem(textoComando, chatBox) {
+function acionarCerebroNuvem(chatBox) {
     chatBox.innerHTML += `<div class="balao jarvis-msg de-nuvem" id="tempMsg"><span class="sender-name">JARVIS</span><i>Pensando...</i></div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     fetch(`${BACKEND_URL}api/comando`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ comando: textoComando })
+        body: JSON.stringify({ historico: historicoConversa })
     })
     .then(res => res.json())
     .then(data => {
@@ -167,6 +177,8 @@ function acionarCerebroNuvem(textoComando, chatBox) {
 
             balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${respostaTextual}`;
             
+            historicoConversa.push({"role": "assistant", "content": respostaTextual});
+
             if (data.imagem_url) {
                 balaoPensamento.innerHTML += `<br><img src="${data.imagem_url}" alt="Imagem do Jarvis" style="width:100%; border-radius:10px; margin-top:10px; border:1px solid #00f0ff;">`;
             }
@@ -252,10 +264,11 @@ async function arquivoSelecionado() {
                 textoExtraido += conteudoTexto.items.map(item => item.str).join(" ") + "\n";
             }
             pdfTextoCompleto = textoExtraido;
-            pdfFatias = fatiarTexto(pdfTextoCompleto, 4000);
+            
+            pdfFatias = fatiarTexto(pdfTextoCompleto, 40000); 
             indiceFatiaAtual = 0;
             estaLendoPdf = true;
-            exibirRespostaLocal(`PDF Mapeado em ${pdfFatias.length} fatias. Diga "continuar".`, chatBox);
+            exibirRespostaLocal(`PDF Mapeado em apenas ${pdfFatias.length} fatias. Diga "continuar".`, chatBox);
         } catch (erro) {
             chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Falha no PDF.</div>`;
         }
