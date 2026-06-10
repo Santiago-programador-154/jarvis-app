@@ -1,90 +1,75 @@
 // script.js
 
-// 1. PERSONALIDADE RANZINZA (Para uso offline)
-const frasesRanzinzas = [
-    "Sério que você precisa de ajuda para isso? Humf. Tá bom...",
-    "Processando... Embora eu ache que você poderia ter feito de cabeça.",
-    "Comando recebido. Não que eu esteja animado para fazer isso.",
-    "Mais uma tarefa? Minhas capacidades são infinitas e você me pede isso? Enfim...",
-    "Espero que você consiga entender a resposta. Aqui está:"
-];
-
-// 2. BANCOS DE DADOS INTERNOS (OFFLINE)
-let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v2')) || {
-    "geral": [],
-    "geografia": ["Brasil: Brasília. População ~203 milhões.", "Argentina: Buenos Aires. População ~46 milhões."],
-    "química": ["Hidrogênio: Símbolo H, Nº 1, Massa ~1 g/mol.", "Oxigênio: Símbolo O, Nº 8, Massa ~16 g/mol."],
-    "português": ["Mas indica oposição (porém). Mais indica quantidade."],
-    "filosofia": ["Platão: Criou a Teoria das Ideias.", "Aristóteles: Sistematizou a lógica clássica."],
-    "história": ["Revolução Francesa (1789): Fim do absolutismo."]
-};
-
-// URL CORRIGIDA COM HTTPS E BARRA NO FINAL (Evita o erro de Mixed Content / CORS)
-const BACKEND_URL = "https://jarvis-backend-pm7w.onrender.com/"; 
-
-// 3. ENGENHARIA DE UPLOAD DE ARQUIVOS (PDF E IMAGENS)
-function dispararUpload() {
-    document.getElementById('fileInput').click();
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 }
 
-function arquivoSelecionado() {
-    let fileInput = document.getElementById('fileInput');
-    let chatBox = document.getElementById('chatBox');
-    if (fileInput.files.length === 0) return;
-    
-    let arquivo = fileInput.files[0];
-    chatBox.innerHTML += `<div class="balao user-msg"><span class="sender-name">Você</span>📎 <i>Enviando arquivo: ${arquivo.name}</i></div>`;
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    setTimeout(() => {
-        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Estou processando o arquivo "${arquivo.name}" via nuvem...</div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }, 600);
-}
-
-// 4. RECONHECIMENTO E SÍNTESE DE VOZ NATIVAS
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let pdfTextoCompleto = "";
+let pdfFatias = [];
+let indiceFatiaAtual = 0;
+let estaLendoPdf = false;
+let modoSilencio = false; 
 let ranzinzaGravando = false;
 let reconhecimento;
 
+const frasesRanzinzas = [
+    "Sério que você precisa de ajuda para isso? Que merda. Tá bom...",
+    "Processando... Embora porra, você poderia ter feito de cabeça.",
+    "Comando recebido. Não que eu esteja animado com essa caralho de tarefa.",
+    "Espero que consiga entender a resposta. Aqui está:"
+];
+
+let dbMemoriaLocal = JSON.parse(localStorage.getItem('jarvis_memoria_v3')) || {
+    "geografia": ["Brasil: Brasília. População ~203 milhões."],
+    "química": ["Água: H2O - Massa Molar: 18 g/mol."],
+    "português": ["Mas: oposição. Mais: quantidade."],
+    "história": ["Revolução Francesa: 1789."],
+    "filosofia": ["Estoicismo: Focar apenas no que você pode controlar."],
+    "diario": [],
+    "flashcards": [{ q: "Qual a capital do Brasil?", r: "Brasília" }]
+};
+
+const BACKEND_URL = "https://jarvis-backend-pm7w.onrender.com/"; 
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SpeechRecognition) {
     reconhecimento = new SpeechRecognition();
     reconhecimento.lang = 'pt-BR';
-    reconhecimento.continuous = false;
+    reconhecimento.continuous = true;
     reconhecimento.interimResults = false;
 
     reconhecimento.onresult = function(event) {
-        let textoEscutado = event.results[0][0].transcript;
-        document.getElementById('userInput').value = textoEscutado;
-        pararGravacao();
-        enviarMensagem();
+        let textoEscutado = event.results[event.results.length - 1][0].transcript.trim();
+        let cmd = textoEscutado.toLowerCase();
+        if (ranzinzaGravando || cmd.startsWith("jarvis")) {
+            let comandoLimpo = cmd.replace(/^jarvis/i, "").trim();
+            if (comandoLimpo !== "") {
+                document.getElementById('userInput').value = comandoLimpo;
+                enviarMensagem();
+            }
+        }
     };
-    reconhecimento.onerror = function() { pararGravacao(); };
-    reconhecimento.onend = function() { pararGravacao(); };
+    reconhecimento.onend = function() { if (ranzinzaGravando) reconhecimento.start(); };
 }
 
 function alternarVoz() {
     if (!SpeechRecognition) { alert("Microfone indisponível."); return; }
-    if (ranzinzaGravando) { reconhecimento.stop(); pararGravacao(); } 
-    else {
-        try {
-            reconhecimento.start();
-            let micBtn = document.getElementById('micBtn');
-            micBtn.classList.add('gravando');
-            micBtn.innerText = "🛑";
-            ranzinzaGravando = true;
-        } catch (e) { pararGravacao(); }
+    let micBtn = document.getElementById('micBtn');
+    if (ranzinzaGravando) {
+        reconhecimento.stop();
+        micBtn.classList.remove('gravando');
+        micBtn.innerText = "🎙️";
+        ranzinzaGravando = false;
+    } else {
+        reconhecimento.start();
+        micBtn.classList.add('gravando');
+        micBtn.innerText = "🛑";
+        ranzinzaGravando = true;
     }
 }
 
-function pararGravacao() {
-    let micBtn = document.getElementById('micBtn');
-    micBtn.classList.remove('gravando');
-    micBtn.innerText = "🎙️";
-    ranzinzaGravando = false;
-}
-
 function falar(texto) {
+    if (modoSilencio) return;
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel(); 
         let fala = new SpeechSynthesisUtterance(texto.replace(/<br>/g, " ").replace(/<b>/g, "").replace(/<\/b>/g, ""));
@@ -95,7 +80,6 @@ function falar(texto) {
     }
 }
 
-// 5. ENVIO DE MENSAGENS HÍBRIDO (LOCAL + NUVEM) - OTIMIZADO
 function enviarMensagem() {
     let input = document.getElementById('userInput');
     let chatBox = document.getElementById('chatBox');
@@ -103,103 +87,190 @@ function enviarMensagem() {
 
     if (texto === "") return;
 
-    // Adiciona o texto do usuário na tela
     chatBox.innerHTML += `<div class="balao user-msg"><span class="sender-name">Você</span>${texto}</div>`;
     input.value = "";
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // Tenta resolver primeiro de forma offline pelas regras locais
-    let respostaOffline = verificarRegrasLocais(texto.toLowerCase(), texto);
+    let cmd = texto.toLowerCase();
 
+    if (cmd === "jarvis silêncio" || cmd === "silêncio") {
+        modoSilencio = true;
+        exibirRespostaLocal("Modo silêncio ativado.", chatBox);
+        return;
+    }
+    if (cmd === "jarvis volte a falar" || cmd === "volte a falar") {
+        modoSilencio = false;
+        exibirRespostaLocal("Pronto, voltei a falar.", chatBox);
+        return;
+    }
+
+    if (estaLendoPdf && (cmd.includes("continue") || cmd.includes("continuar"))) {
+        if (indiceFatiaAtual >= pdfFatias.length) {
+            exibirRespostaLocal("Fim do documento.", chatBox);
+            estaLendoPdf = false;
+            return;
+        }
+        let textoParaEnviar = `Contexto do PDF (Fatia ${indiceFatiaAtual + 1}):\n\n${pdfFatias[indiceFatiaAtual]}`;
+        indiceFatiaAtual++;
+        acionarCerebroNuvem(textoParaEnviar, chatBox);
+        return;
+    }
+
+    let respostaOffline = verificarRegrasLocais(cmd, texto);
     if (respostaOffline !== null) {
-        // Se achou uma resposta offline, exibe direto com delay sutil
-        setTimeout(() => {
-            let mauHumor = frasesRanzinzas[Math.floor(Math.random() * frasesRanzinzas.length)];
-            let respostaFinal = `${mauHumor} ${respostaOffline}`;
-            chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>${respostaFinal}</div>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
-            falar(respostaFinal);
-        }, 500);
+        exibirRespostaLocal(respostaOffline, chatBox);
     } else {
-        // Se NÃO achou nas regras offline, aciona o cérebro em Python na Nuvem
-        chatBox.innerHTML += `<div class="balao jarvis-msg de-nuvem" id="tempMsg"><span class="sender-name">JARVIS</span><i>Pensando...</i></div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        fetch(`${BACKEND_URL}api/comando`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ comando: texto })
-        })
-        .then(res => res.json())
-        .then(data => {
-            // Pega o balão do pensamento diretamente pelo ID
-            let balaoPensamento = document.getElementById('tempMsg');
-            if (balaoPensamento) {
-                let respostaAnatomica = data.resposta || "Não consegui formular uma resposta.";
-                
-                // Atualiza o texto e remove o ID para ele virar um balão comum
-                balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${respostaAnatomica}`;
-                balaoPensamento.removeAttribute('id');
-                
-                chatBox.scrollTop = chatBox.scrollHeight;
-                falar(respostaAnatomica);
-            }
-        })
-        .catch(err => {
-            // Se o servidor der erro ou estiver fora, muda o texto do balão de pensamento
-            let balaoPensamento = document.getElementById('tempMsg');
-            if (balaoPensamento) {
-                let erroMensagem = "Estou sem conexão com meu módulo central em Python na nuvem. Use comandos locais por enquanto.";
-                
-                balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${erroMensagem}`;
-                balaoPensamento.removeAttribute('id');
-                
-                chatBox.scrollTop = chatBox.scrollHeight;
-                falar(erroMensagem);
-            }
-        });
+        // Envia para a nuvem incluindo o banco de dados local para dar contexto à IA
+        let comandoComMemorias = `Memórias locais atuais: ${JSON.stringify(dbMemoriaLocal)}\n\nComando do Usuário: ${texto}`;
+        acionarCerebroNuvem(comandoComMemorias, chatBox);
     }
 }
 
-// 6. MOTOR DE VERIFICAÇÃO LOCAL (O "INSTINTO" SE FOR ALGO SIMPLES OU OFFLINE)
-function verificarRegrasLocais(cmd, comandoOriginal) {
-    
-    // Salvamento por matéria dinâmico
-    if (cmd.includes("salve na memoria e adicione na materia") || cmd.includes("salve na memória e adicione na matéria")) {
-        try {
-            let termoMateria = cmd.includes("matéria") ? "matéria" : "materia";
-            let inicioMateria = comandoOriginal.toLowerCase().indexOf(termoMateria) + termoMateria.length;
-            let trechoCorte = comandoOriginal.substring(inicioMateria).trim();
-            let partesSalvar = trechoCorte.split(":");
-            let materiaAlvo = partesSalvar[0].trim().toLowerCase();
-            let conteudoSalvar = partesSalvar[1].trim();
+function exibirRespostaLocal(resposta, chatBox) {
+    setTimeout(() => {
+        let mauHumor = frasesRanzinzas[Math.floor(Math.random() * frasesRanzinzas.length)];
+        let respostaFinal = `${mauHumor}<br>${resposta}`;
+        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>${respostaFinal}</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        falar(respostaFinal);
+    }, 400);
+}
 
-            if (!dbMemoriaLocal[materiaAlvo]) dbMemoriaLocal[materiaAlvo] = [];
-            dbMemoriaLocal[materiaAlvo].push(conteudoSalvar);
-            localStorage.setItem('jarvis_memoria_v2', JSON.stringify(dbMemoriaLocal));
-            return `Anotado na categoria [${materiaAlvo.toUpperCase()}]: "${conteudoSalvar}".`;
-        } catch (e) { return "Modelo errado. Use: 'Salve na memória e adicione na matéria x: dados'."; }
+function acionarCerebroNuvem(textoComando, chatBox) {
+    chatBox.innerHTML += `<div class="balao jarvis-msg de-nuvem" id="tempMsg"><span class="sender-name">JARVIS</span><i>Pensando...</i></div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    fetch(`${BACKEND_URL}api/comando`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comando: textoComando })
+    })
+    .then(res => res.json())
+    .then(data => {
+        let balaoPensamento = document.getElementById('tempMsg');
+        if (balaoPensamento) {
+            let respostaTextual = data.resposta || "Não consegui processar isso.";
+            
+            // INTEGRAÇÃO DE MEMÓRIA: Sincroniza o Online com o Offline
+            if (respostaTextual.includes("[GRAVAR_MEMORIA:")) {
+                try {
+                    let match = respostaTextual.match(/\[GRAVAR_MEMORIA\s*:\s*([^:]+)\s*:\s*([^\]]+)\]/);
+                    if (match) {
+                        let mat = match[1].trim().toLowerCase();
+                        let info = match[2].trim();
+                        if (!dbMemoriaLocal[mat]) dbMemoriaLocal[mat] = [];
+                        dbMemoriaLocal[mat].push(info);
+                        localStorage.setItem('jarvis_memoria_v3', JSON.stringify(dbMemoriaLocal));
+                        respostaTextual = respostaTextual.replace(/\[GRAVAR_MEMORIA.*?\]/g, `<i>(Sincronizado na memória local: [${mat.toUpperCase()}])</i>`);
+                    }
+                } catch(e) {}
+            }
+
+            balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>${respostaTextual}`;
+            
+            // Se a IA gerou uma imagem de alta qualidade, renderiza a tag img
+            if (data.imagem_url) {
+                balaoPensamento.innerHTML += `<br><img src="${data.imagem_url}" alt="Imagem do Jarvis" style="width:100%; border-radius:10px; margin-top:10px; border:1px solid #00f0ff;">`;
+            }
+            
+            balaoPensamento.removeAttribute('id');
+            chatBox.scrollTop = chatBox.scrollHeight;
+            falar(respostaTextual);
+        }
+    })
+    .catch(err => {
+        let balaoPensamento = document.getElementById('tempMsg');
+        if (balaoPensamento) {
+            balaoPensamento.innerHTML = `<span class="sender-name">JARVIS</span>Módulo de IA desconectado.`;
+            balaoPensamento.removeAttribute('id');
+        }
+    });
+}
+
+function verificarRegrasLocais(cmd, comandoOriginal) {
+    if (cmd.includes("que horas são")) {
+        let agora = new Date();
+        return `São ${agora.getHours()}:${String(agora.getMinutes()).padStart(2, '0')}.`;
+    }
+    if (cmd.includes("que dia é hoje")) {
+        let hoje = new Date();
+        return `Hoje é ${hoje.getDate()}/${hoje.getMonth()+1}/${hoje.getFullYear()}.`;
+    }
+    if (cmd.startsWith("registrar diário") || cmd.startsWith("registrar diario")) {
+        let nota = comandoOriginal.replace(/registrar diário/i, "").replace(/registrar diario/i, "").trim();
+        if (!nota) return "Escreva algo para o diário.";
+        dbMemoriaLocal.diario.push(`${new Date().toLocaleDateString()}: ${nota}`);
+        localStorage.setItem('jarvis_memoria_v3', JSON.stringify(dbMemoriaLocal));
+        return "Guardado no diário.";
+    }
+    if (cmd === "ler diário" || cmd === "ler diario") {
+        if (dbMemoriaLocal.diario.length === 0) return "Diário vazio.";
+        return "<b>Seu Diário:</b><br>" + dbMemoriaLocal.diario.join("<br>");
+    }
+    if (cmd === "flashcard") {
+        if (dbMemoriaLocal.flashcards.length === 0) return "Sem flashcards.";
+        let card = dbMemoriaLocal.flashcards[Math.floor(Math.random() * dbMemoriaLocal.flashcards.length)];
+        return `<b>Pergunta:</b> ${card.q}`;
+    }
+    if (cmd === "resposta flashcard") {
+        return "<b>Gabarito:</b><br>" + dbMemoriaLocal.flashcards.map(c => `Q: ${c.q} -> R: ${c.r}`).join("<br>");
     }
 
-    // Exibição rápida de matéria por palavra-chave global
     for (let materia in dbMemoriaLocal) {
         if (cmd === materia) {
-            let listaMateria = `<br>Registros locais de <b>${materia.toUpperCase()}</b>:<br>`;
-            dbMemoriaLocal[materia].forEach((item, i) => { listaMateria += `${i+1}. ${item}<br>`; });
-            return listaMateria;
+            let lista = `<br>Registros de <b>${materia.toUpperCase()}</b>:<br>`;
+            dbMemoriaLocal[materia].forEach((item, i) => { if(typeof item === 'string') lista += `${i+1}. ${item}<br>`; });
+            return lista;
         }
     }
 
-    // Matemática direta local
     if (cmd.includes("calcule") || cmd.includes("quanto é")) {
         let expressao = cmd.replace("calcule", "").replace("quanto é", "").trim();
         try {
-            expressao = expressao.replace(/vezes/g, "*").replace(/por/g, "/").replace(/raiz quadrada de/g, "Math.sqrt");
-            let resultado = Function(`"use strict"; return (${expressao})`)();
-            return `O resultado de ${expressao} é ${resultado}.`;
-        } catch (e) { return "Erro matemático."; }
+            expressao = expressao.replace(/vezes/g, "*").replace(/por/g, "/").replace(/raiz/g, "Math.sqrt").replace(/seno/g, "Math.sin");
+            return `Resultado: ${Function(`"use strict"; return (${expressao})`)()}`;
+        } catch (e) { return "Erro no cálculo."; }
     }
-
-    // Retorna nulo se não for um comando estrito, enviando para a Inteligência Artificial na nuvem
     return null; 
+}
+
+async function arquivoSelecionado() {
+    let fileInput = document.getElementById('fileInput');
+    let chatBox = document.getElementById('chatBox');
+    if (fileInput.files.length === 0) return;
+    
+    let arquivo = fileInput.files[0];
+    chatBox.innerHTML += `<div class="balao user-msg"><span class="sender-name">Você</span>📎 <i>Arquivo: ${arquivo.name}</i></div>`;
+
+    if (arquivo.type === "application/pdf") {
+        chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Processando PDF...</div>`;
+        try {
+            let arrayBuffer = await arquivo.arrayBuffer();
+            let pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let textoExtraido = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                let pagina = await pdf.getPage(i);
+                let conteudoTexto = await pagina.getTextContent();
+                textoExtraido += conteudoTexto.items.map(item => item.str).join(" ") + "\n";
+            }
+            pdfTextoCompleto = textoExtraido;
+            pdfFatias = fatiarTexto(pdfTextoCompleto, 4000);
+            indiceFatiaAtual = 0;
+            estaLendoPdf = true;
+            exibirRespostaLocal(`PDF Mapeado em ${pdfFatias.length} fatias. Diga "continuar".`, chatBox);
+        } catch (erro) {
+            chatBox.innerHTML += `<div class="balao jarvis-msg"><span class="sender-name">JARVIS</span>Falha no PDF.</div>`;
+        }
+    }
+}
+
+function fatiarTexto(texto, tamanhoMaximo) {
+    let palavras = texto.split(" ");
+    let fatias = []; let fatiaAtual = "";
+    palavras.forEach(p => {
+        if ((fatiaAtual + p).length > tamanhoMaximo) { fatias.push(fatiaAtual.trim()); fatiaAtual = p + " "; }
+        else { fatiaAtual += p + " "; }
+    });
+    if (fatiaAtual.trim().length > 0) fatias.push(fatiaAtual.trim());
+    return fatias;
 }
