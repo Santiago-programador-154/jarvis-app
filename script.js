@@ -1,5 +1,5 @@
-// ==================== JARVIS - VERSÃO FINAL COM INTERFACE POR ABAS ====================
-document.addEventListener('DOMContentLoaded', () => {
+// ==================== JARVIS - VERSÃO MEGA COMPLETA ====================
+document.addEventListener('DOMContentLoaded', function() {
     console.log('JARVIS iniciado');
 
     // ==================== ELEMENTOS DOM ====================
@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const micBtn = document.getElementById('micBtn');
     const fileInput = document.getElementById('fileInput');
     const pdfStatusDiv = document.getElementById('pdfStatus');
-    const commandsDatalist = document.getElementById('commands-list');
 
     if (!sendBtn || !userInput || !chatBox) return;
 
@@ -18,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let historicoConversa = [];
     let reconhecimento = null;
     let gravando = false;
+    
     let pdfDoc = null;
     let pdfPaginaAtual = 1;
     let pdfNumPaginas = 0;
@@ -26,8 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let estaLendoPdf = false;
     let modoEspecialista = false;
     let modoAviao = false;
+
     let cronometroInicio = null;
     let cronometroIntervalo = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
 
     const BACKEND_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
         ? 'http://localhost:5000/'
@@ -50,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let gastos = JSON.parse(localStorage.getItem('jarvis_gastos')) || [];
 
-    const piadas = ["Por que o programador foi ao mercado? Por bytes!", "O que o zero disse ao oito? Bonito cinto!", "..."];
+    const piadas = ["Por que o programador foi ao mercado? Por bytes!", "O que o zero disse ao oito? Bonito cinto!", "Qual o cúmulo do preguiçoso? Ser enterrado numa montanha de documentos.", "Por que o livro de matemática é triste? Porque tem muitos problemas."];
 
     let aguardandoAprenderPDF = false;
     let nomeMateriaPDF = '';
@@ -88,11 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function atualizarEstatisticas() {
-        document.getElementById('statComandos') && (document.getElementById('statComandos').innerText = historicoConversa.filter(m => m.role === 'user').length);
-        document.getElementById('statMensagens') && (document.getElementById('statMensagens').innerText = historicoConversa.length);
-        document.getElementById('statTarefas') && (document.getElementById('statTarefas').innerText = dbMemoriaLocal.tarefas.filter(t => !t.concluida).length);
-        document.getElementById('statGastos') && (document.getElementById('statGastos').innerHTML = `R$ ${gastos.reduce((s,g) => s + g.valor, 0).toFixed(2)}`);
-        document.getElementById('statDiario') && (document.getElementById('statDiario').innerText = dbMemoriaLocal.diario.length);
+        if(document.getElementById('statComandos')) document.getElementById('statComandos').innerText = historicoConversa.filter(m => m.role === 'user').length;
+        if(document.getElementById('statMensagens')) document.getElementById('statMensagens').innerText = historicoConversa.length;
+        if(document.getElementById('statTarefas')) document.getElementById('statTarefas').innerText = dbMemoriaLocal.tarefas.filter(t => !t.concluida).length;
+        if(document.getElementById('statGastos')) document.getElementById('statGastos').innerHTML = `R$ ${gastos.reduce((s,g) => s + g.valor, 0).toFixed(2)}`;
+        if(document.getElementById('statDiario')) document.getElementById('statDiario').innerText = dbMemoriaLocal.diario.length;
     }
 
     function adicionarConhecimentoOffline(materia, conteudo) {
@@ -102,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `✅ Aprendi: "${materia}" -> "${conteudo.substring(0, 50)}..."`;
     }
 
-    // ==================== PDF ====================
+    // ==================== PDF FUNCTIONS ====================
     async function carregarPDFCompleto(arrayBuffer) {
         try {
             pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -177,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
-    // ==================== IA ====================
+    // ==================== IA (BACKEND) ====================
     async function chamarIA() {
         if (modoAviao) { exibirRespostaJarvis("✈️ Modo avião ativo. Use comandos offline."); return; }
         const typing = document.getElementById('typingIndicator');
@@ -197,11 +200,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==================== NOVAS FUNCIONALIDADES (20 extras) ====================
-    async function gerarQRCode(texto) { return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(texto)}`; }
-    function forcaSenha(s) { let f = (s.length>=8) + (s.match(/[A-Z]/)?1:0) + (s.match(/[0-9]/)?1:0) + (s.match(/[^A-Za-z0-9]/)?1:0); return f<=2?"Fraca":f<=4?"Média":"Forte"; }
+    // ==================== FUNÇÕES AUXILIARES NOVAS ====================
+    function levenshtein(a, b) {
+        const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+        for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+        for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+        for (let j = 1; j <= b.length; j++) {
+            for (let i = 1; i <= a.length; i++) {
+                const cost = a[i-1] === b[j-1] ? 0 : 1;
+                matrix[j][i] = Math.min(matrix[j][i-1] + 1, matrix[j-1][i] + 1, matrix[j-1][i-1] + cost);
+            }
+        }
+        return matrix[b.length][a.length];
+    }
 
-    // ==================== ENVIO PRINCIPAL ====================
+                              // ==================== ENVIO PRINCIPAL ====================
     window.inserirComando = function(cmd) { userInput.value = cmd; enviarMensagem(); };
 
     async function enviarMensagem() {
@@ -211,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         userInput.value = '';
         const cmd = texto.toLowerCase();
 
-        // --- Comandos estruturais (PDF, aprender, etc.) ---
+        // ---------- COMANDOS EXISTENTES (compactados) ----------
         if (cmd.startsWith('aprender ')) {
             let resto = texto.substring(9).trim();
             let dp = resto.indexOf(':');
@@ -249,13 +262,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cmd.startsWith('criar audio sobre ')) {
             let tema = texto.replace(/criar audio sobre /i,"").trim();
             if(!tema) { exibirRespostaJarvis("Tema?"); return; }
-            exibirRespostaJarvis(`🎧 Gerando áudio de "${tema}"...`, false);
+            exibirRespostaJarvis(`🎧 Gerando áudio...`, false);
             let resIA = await fetch(`${BACKEND_URL}api/comando`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ historico:[{role:"user", content:`Resumo curto (1500 caracteres) sobre: ${tema}`}] }) });
             let dataIA = await resIA.json();
             let textoAudio = dataIA.resposta || "";
             let resAudio = await fetch(`${BACKEND_URL}api/gerar_audio`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ texto:textoAudio }) });
             if(resAudio.ok){ let blob=await resAudio.blob(); let a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="audio.mp3"; a.click(); exibirRespostaJarvis("✅ Áudio gerado."); }
-            else exibirRespostaJarvis("❌ Erro no áudio.");
+            else exibirRespostaJarvis("❌ Erro.");
             return;
         }
         if (cmd.startsWith('criar slides sobre ')) {
@@ -272,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cmd.startsWith('clima em ')) {
             let cidade = texto.replace(/clima em /i,"").trim();
             if(!cidade) { exibirRespostaJarvis("Cidade?"); return; }
-            exibirRespostaJarvis(`🌡️ Consultando ${cidade}...`, false);
+            exibirRespostaJarvis(`🌡️ Consultando...`, false);
             let resp = await fetch(`${BACKEND_URL}api/clima`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ cidade }) });
             let data = await resp.json();
             exibirRespostaJarvis(data.resposta);
@@ -297,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (cmd.startsWith('rode js:')) {
             let codigo = texto.replace(/rode js:/i,"").trim();
-            if(!codigo) { exibirRespostaJarvis("Código?"); return; }
+            if(!codigo) return exibirRespostaJarvis("Código vazio.");
             let resp = await fetch(`${BACKEND_URL}api/executar_codigo`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ linguagem:"javascript", codigo }) });
             let data = await resp.json();
             exibirRespostaJarvis(data.resposta);
@@ -305,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (cmd.startsWith('encurtar ')) {
             let link = texto.replace(/encurtar /i,"").trim();
-            if(!link) { exibirRespostaJarvis("Link?"); return; }
+            if(!link) return exibirRespostaJarvis("Link?");
             let resp = await fetch(`${BACKEND_URL}api/encurtar`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url:link }) });
             let data = await resp.json();
             exibirRespostaJarvis(data.resposta);
@@ -383,6 +396,21 @@ document.addEventListener('DOMContentLoaded', () => {
             exibirRespostaJarvis(resumo);
             return;
         }
+        if (cmd === 'relatório de gastos') {
+            if (gastos.length === 0) { exibirRespostaJarvis("Nenhum gasto registrado."); return; }
+            let porCat = {};
+            gastos.forEach(g=>{ porCat[g.categoria] = (porCat[g.categoria]||0)+g.valor; });
+            let labels = Object.keys(porCat);
+            let data = Object.values(porCat);
+            let modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content" style="max-width:500px;"><h3>📊 Relatório de Gastos</h3><canvas id="gastosChart" width="400" height="300"></canvas><br><button id="closeChartBtn">Fechar</button></div>`;
+            document.body.appendChild(modal);
+            let ctx = modal.querySelector('#gastosChart').getContext('2d');
+            new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Gastos (R$)', data, backgroundColor: '#00f0ff' }] } });
+            modal.querySelector('#closeChartBtn').onclick = () => modal.remove();
+            return;
+        }
         if (cmd === 'últimas notícias' || cmd === 'notícias') {
             exibirRespostaJarvis("📰 Buscando...", false);
             let resp = await fetch(`${BACKEND_URL}api/noticias`);
@@ -394,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let signo = cmd.replace('horóscopo','').trim().toLowerCase();
             let signos = ["aries","touro","gemeos","cancer","leao","virgem","libra","escorpiao","sagitario","capricornio","aquario","peixes"];
             if(!signos.includes(signo)){ exibirRespostaJarvis("Signo inválido."); return; }
-            exibirRespostaJarvis(`🔮 Buscando horóscopo...`, false);
+            exibirRespostaJarvis(`🔮 Buscando...`, false);
             try{
                 let resp = await fetch(`https://horoscope-api.herokuapp.com/horoscope/${signo}/today`);
                 let data = await resp.json();
@@ -438,16 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else exibirRespostaJarvis("Digite: pomodoro [minutos]");
             return;
         }
-        if (cmd === 'tela cheia') {
-            if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-            else exibirRespostaJarvis("Não suportado.");
-            return;
-        }
-        if (cmd === 'vibrar') {
-            if(navigator.vibrate) navigator.vibrate(200);
-            else exibirRespostaJarvis("Não suportado.");
-            return;
-        }
+        if (cmd === 'tela cheia') { if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); else exibirRespostaJarvis("Não suportado."); return; }
+        if (cmd === 'vibrar') { if(navigator.vibrate) navigator.vibrate(200); else exibirRespostaJarvis("Não suportado."); return; }
         if (cmd.startsWith('buscar no histórico ')) {
             let termo = cmd.replace('buscar no histórico','').trim();
             let hist = JSON.parse(localStorage.getItem('jarvis_historico')) || [];
@@ -458,166 +478,162 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (cmd === 'modo avião') { modoAviao=true; exibirRespostaJarvis("✈️ Modo avião ativado."); return; }
         if (cmd === 'modo normal') { modoAviao=false; exibirRespostaJarvis("📡 Modo normal."); return; }
-
-        // ---- 20 novas funcionalidades integradas (resumidas) ----
-        if (cmd.startsWith('media ')) {
-            let nums = texto.match(/\d+(?:\.\d+)?/g);
-            if(nums && nums.length){
-                let media = nums.reduce((a,b)=>a+parseFloat(b),0)/nums.length;
-                let status = media>=7?"✅ Aprovado":media>=5?"⚠️ Recuperação":"❌ Reprovado";
-                exibirRespostaJarvis(`📊 Média = ${media.toFixed(2)} - ${status}`);
-            } else exibirRespostaJarvis("Forneça notas separadas por espaço.");
-            return;
-        }
-        if (cmd.startsWith('nota ')) {
-            let nota = parseFloat(texto.match(/\d+(?:\.\d+)?/)?.[0]);
-            if(!isNaN(nota)){
-                let letra = nota>=9?"A":nota>=8?"B":nota>=7?"C":nota>=5?"D":"F";
-                exibirRespostaJarvis(`📝 Nota ${nota} → ${letra}`);
-            } else exibirRespostaJarvis("Use: nota [valor]");
-            return;
-        }
-        if (cmd === 'cronograma de estudos') {
-            let materias = ["Matemática","Português","História","Geografia","Ciências","Inglês","Física","Química"];
-            let sorteadas = materias.sort(()=>0.5-Math.random()).slice(0,4);
-            exibirRespostaJarvis("📚 Cronograma:\n"+sorteadas.map((m,i)=>`${i+1}. ${m}: 30 min`).join("\n"));
-            return;
-        }
-        if (cmd.startsWith('força da senha ')) {
-            let senha = texto.replace(/força da senha /i,"").trim();
-            exibirRespostaJarvis(`🔐 Força: ${forcaSenha(senha)}`);
-            return;
-        }
-        if (cmd.startsWith('falar ')) {
-            let txt = texto.replace(/falar /i,"").trim();
-            exibirRespostaJarvis(txt, true);
-            return;
-        }
-        if (cmd.startsWith('humor hoje ')) {
-            let nota = parseInt(cmd.match(/\d+/)?.[0]);
-            if(nota>=1 && nota<=5){
-                dbMemoriaLocal.humor.push({data:new Date().toLocaleDateString(), nota});
-                localStorage.setItem('jarvis_memoria_v3',JSON.stringify(dbMemoriaLocal));
-                exibirRespostaJarvis(`😊 Humor ${nota}/5 registrado.`);
-            } else exibirRespostaJarvis("Use: humor hoje [1-5]");
-            return;
-        }
-        if (cmd.startsWith('combustível ')) {
-            let m = texto.match(/distancia\s+(\d+(?:\.\d+)?)\s+consumo\s+(\d+(?:\.\d+)?)\s+preco\s+(\d+(?:\.\d+)?)/i);
-            if(m){
-                let litros = parseFloat(m[1])/parseFloat(m[2]);
-                let custo = litros*parseFloat(m[3]);
-                exibirRespostaJarvis(`⛽ Litros: ${litros.toFixed(2)} | Custo: R$ ${custo.toFixed(2)}`);
-            } else exibirRespostaJarvis("Formato: combustível distancia [km] consumo [km/l] preco [R$/l]");
-            return;
-        }
-        if (cmd.startsWith('converter tempo ')) {
-            let m = texto.match(/converter tempo (\d+(?:\.\d+)?)\s+(\w+)\s+para\s+(\w+)/i);
-            if(m){
-                let valor=parseFloat(m[1]), de=m[2].toLowerCase(), para=m[3].toLowerCase();
-                let seg = de==="segundos"?valor:de==="minutos"?valor*60:de==="horas"?valor*3600:de==="dias"?valor*86400:0;
-                let res = para==="segundos"?seg:para==="minutos"?seg/60:para==="horas"?seg/3600:para==="dias"?seg/86400:0;
-                exibirRespostaJarvis(`⏱️ ${valor} ${de} = ${res.toFixed(2)} ${para}`);
-            } else exibirRespostaJarvis("Formato: converter tempo [valor] [unidade] para [unidade]");
-            return;
-        }
-        if (cmd === 'email temporário') {
-            exibirRespostaJarvis("📧 Gerando e-mail...", false);
-            try{
-                let resp = await fetch('https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1');
-                let data = await resp.json();
-                exibirRespostaJarvis(`📧 Email: ${data[0]}`);
-                localStorage.setItem('temp_email', data[0]);
-            } catch{ exibirRespostaJarvis("Erro."); }
-            return;
-        }
-        if (cmd === 'fato científico') {
-            exibirRespostaJarvis("🔬 Buscando fato...", false);
-            try{
-                let resp = await fetch('https://uselessfacts.jsph.pl/random.json?language=pt');
-                let data = await resp.json();
-                exibirRespostaJarvis(`🔬 ${data.text}`);
-            } catch{ exibirRespostaJarvis("Erro."); }
-            return;
-        }
-        if (cmd.startsWith('lembrar aniversário ')) {
-            let m = texto.match(/lembrar aniversário (\d{1,2}\/\d{1,2}\/\d{4}) (.+)/i);
-            if(m){
-                let aniv = JSON.parse(localStorage.getItem('aniversarios')||'[]');
-                aniv.push({nome:m[2], data:m[1]});
-                localStorage.setItem('aniversarios', JSON.stringify(aniv));
-                exibirRespostaJarvis(`🎂 Aniversário de ${m[2]} em ${m[1]} salvo.`);
-            } else exibirRespostaJarvis("Formato: lembrar aniversário dd/mm/aaaa nome");
-            return;
-        }
-        if (cmd.startsWith('traduzir frase ')) {
-            let resto = texto.replace(/traduzir frase /i,"").trim();
-            let m = resto.match(/(.+)\s+para\s+(\w+)/i);
-            if(m){
-                exibirRespostaJarvis("🌐 Traduzindo...", false);
-                try{
-                    let resp = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(m[1])}&langpair=auto|${m[2]==='portugues'?'pt':m[2]==='ingles'?'en':m[2]==='espanhol'?'es':'fr'}`);
-                    let data = await resp.json();
-                    exibirRespostaJarvis(`📝 Tradução: ${data.responseData.translatedText}`);
-                } catch{ exibirRespostaJarvis("Erro."); }
-            } else exibirRespostaJarvis("Formato: traduzir frase [texto] para [idioma]");
-            return;
-        }
-        if (cmd === 'palavra do dia') {
-            let palavras = [{p:"serendipity",t:"acaso feliz"},{p:"ephemeral",t:"efêmero"},{p:"resilience",t:"resiliência"}];
-            let escolha = palavras[Math.floor(Math.random()*palavras.length)];
-            exibirRespostaJarvis(`📖 Palavra do dia: ${escolha.p} → ${escolha.t}`);
-            return;
-        }
-        if (cmd.startsWith('resumir texto ')) {
-            let txt = texto.replace(/resumir texto /i,"").trim();
-            if(txt.length<10){ exibirRespostaJarvis("Texto muito curto."); return; }
-            exibirRespostaJarvis("📄 Resumindo...", false);
-            let resp = await fetch(`${BACKEND_URL}api/comando`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ historico:[{role:"user", content:`Resuma este texto em até 3 frases: ${txt}`}] }) });
-            let data = await resp.json();
-            exibirRespostaJarvis(data.resposta);
-            return;
-        }
-        if (cmd === 'modo foco ativar') { modoSilencio=true; exibirRespostaJarvis("🎯 Modo foco ativado (sem voz)."); return; }
-        if (cmd === 'modo foco desativar') { modoSilencio=false; exibirRespostaJarvis("🎯 Voz retomada."); return; }
-        if (cmd.startsWith('histórico de ')) {
-            let dataStr = cmd.replace('histórico de','').trim();
-            let hist = JSON.parse(localStorage.getItem('jarvis_historico')) || [];
-            let filt = hist.filter(m=>m.content.includes(dataStr));
-            exibirRespostaJarvis(`📜 ${filt.length} mensagens com "${dataStr}".`);
-            return;
-        }
-        if (cmd === 'exportar tudo') {
-            let backup = { memoria:dbMemoriaLocal, historico:historicoConversa, gastos:gastos };
-            let blob = new Blob([JSON.stringify(backup,null,2)], {type:"application/json"});
-            let a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="jarvis_backup.json"; a.click();
-            exibirRespostaJarvis("💾 Backup exportado.");
-            return;
-        }
-        if (cmd === 'importar backup') {
-            let input = document.createElement('input');
-            input.type='file'; input.accept='application/json';
-            input.onchange = async (e)=>{
-                let file = e.target.files[0];
-                let text = await file.text();
-                let data = JSON.parse(text);
-                if(data.memoria) localStorage.setItem('jarvis_memoria_v3', JSON.stringify(data.memoria));
-                if(data.gastos) localStorage.setItem('jarvis_gastos', JSON.stringify(data.gastos));
-                exibirRespostaJarvis("✅ Backup importado. Recarregue a página.");
-                setTimeout(()=>location.reload(),2000);
-            };
-            input.click();
-            return;
-        }
         if (cmd === 'tema azul') { document.body.classList.remove('light-mode','green-theme'); document.body.classList.add('blue-theme'); exibirRespostaJarvis("🎨 Tema azul aplicado."); return; }
         if (cmd === 'tema verde') { document.body.classList.remove('light-mode','blue-theme'); document.body.classList.add('green-theme'); exibirRespostaJarvis("🎨 Tema verde aplicado."); return; }
         if (cmd === 'tema padrão') { document.body.classList.remove('light-mode','blue-theme','green-theme'); document.body.classList.add('dark-mode'); exibirRespostaJarvis("🎨 Tema padrão restaurado."); return; }
 
-        // ---- Fallback para comandos offline genéricos ----
+        // ==================== NOVAS FUNCIONALIDADES ====================
+        // Receita culinária
+        if (cmd === 'receita') {
+            const receitas = ["🍳 **Omelete simples**: 2 ovos, sal, pimenta, queijo.", "🥗 **Salada de frutas**: pique maçã, banana, laranja, uva.", "🍝 **Macarrão alho e óleo**: alho no azeite, macarrão, salsinha.", "🍰 **Bolo de caneca**: 1 ovo, 4 colheres leite, 3 farinha, 2 açúcar, 1 chocolate, fermento. 1 min micro-ondas."];
+            exibirRespostaJarvis(receitas[Math.floor(Math.random() * receitas.length)]);
+            return;
+        }
+        if (cmd.startsWith('receita de ')) { exibirRespostaJarvis("📖 Ainda não tenho essa receita. Use 'aprender receita_[nome] : [instruções]' para ensinar."); return; }
+        // Timer
+        if (cmd.startsWith('timer ')) {
+            let match = texto.match(/timer\s+(\d+)\s+(segundos?|minutos?)/i);
+            if (!match) match = texto.match(/timer\s+(\d+)/i);
+            if (match) {
+                let valor = parseInt(match[1]), unidade = match[2] ? match[2].toLowerCase() : "minutos", ms = unidade.startsWith("seg") ? valor * 1000 : valor * 60 * 1000;
+                if (ms > 0 && ms < 3600000) {
+                    exibirRespostaJarvis(`⏲️ Timer de ${valor} ${unidade} iniciado.`);
+                    setTimeout(() => { exibirRespostaJarvis(`🔔 Timer de ${valor} ${unidade} finalizado!`); if(Notification.permission==="granted") new Notification("Timer",{body:`${valor} ${unidade} terminou!`}); }, ms);
+                } else exibirRespostaJarvis("Timer muito longo (máx 1 hora).");
+            } else exibirRespostaJarvis("Use: timer [número] [segundos/minutos]");
+            return;
+        }
+        // Cofre de senhas
+        if (cmd.startsWith('salvar senha ')) {
+            let partes = texto.match(/salvar senha (.+?)\s+(.+?)\s+(.+)/i);
+            if(partes){
+                let site=partes[1], usuario=partes[2], senha=partes[3];
+                let cofre = JSON.parse(localStorage.getItem('jarvis_cofre')) || [];
+                let encrypted = btoa(unescape(encodeURIComponent(JSON.stringify({ site, usuario, senha }))));
+                cofre.push(encrypted);
+                localStorage.setItem('jarvis_cofre', JSON.stringify(cofre));
+                exibirRespostaJarvis(`🔐 Senha salva para ${site}.`);
+            } else exibirRespostaJarvis("Formato: salvar senha [site] [usuario] [senha]");
+            return;
+        }
+        if (cmd === 'mostrar senhas') {
+            let cofre = JSON.parse(localStorage.getItem('jarvis_cofre')) || [];
+            if(cofre.length===0) exibirRespostaJarvis("Nenhuma senha salva.");
+            else { let lista = "🔐 **Senhas salvas:**\n"; cofre.forEach((enc,i)=>{ try{ let dec=JSON.parse(decodeURIComponent(escape(atob(enc)))); lista+=`${i+1}. ${dec.site} - ${dec.usuario}\n`; }catch(e){} }); exibirRespostaJarvis(lista); }
+            return;
+        }
+        // Agenda
+        if (cmd.startsWith('adicionar evento ')) {
+            let resto = texto.replace(/adicionar evento /i,"").trim();
+            let match = resto.match(/(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+)/);
+            if(match){
+                let agenda = JSON.parse(localStorage.getItem('jarvis_agenda')) || [];
+                agenda.push({ data:match[1], desc:match[2] });
+                localStorage.setItem('jarvis_agenda', JSON.stringify(agenda));
+                exibirRespostaJarvis(`✅ Evento para ${match[1]}: ${match[2]}`);
+            } else exibirRespostaJarvis("Formato: adicionar evento dd/mm/aaaa descrição");
+            return;
+        }
+        if (cmd === 'eventos hoje') {
+            let hoje = new Date().toLocaleDateString();
+            let agenda = JSON.parse(localStorage.getItem('jarvis_agenda')) || [];
+            let evs = agenda.filter(e=>e.data===hoje);
+            if(evs.length) exibirRespostaJarvis(`📅 Hoje:\n`+evs.map(e=>`• ${e.desc}`).join("\n"));
+            else exibirRespostaJarvis("Nenhum evento hoje.");
+            return;
+        }
+        if (cmd === 'eventos amanhã') {
+            let amanha = new Date(Date.now()+86400000).toLocaleDateString();
+            let agenda = JSON.parse(localStorage.getItem('jarvis_agenda')) || [];
+            let evs = agenda.filter(e=>e.data===amanha);
+            if(evs.length) exibirRespostaJarvis(`📅 Amanhã:\n`+evs.map(e=>`• ${e.desc}`).join("\n"));
+            else exibirRespostaJarvis("Nenhum evento amanhã.");
+            return;
+        }
+        // Comparar textos
+        if (cmd.startsWith('comparar textos ')) {
+            let resto = texto.replace(/comparar textos /i,"").trim();
+            let sep = resto.indexOf(' ', resto.indexOf(' ')+1);
+            let t1 = resto.substring(0,sep).trim(), t2 = resto.substring(sep+1).trim();
+            if(t1 && t2){
+                let dist = levenshtein(t1, t2);
+                let maxLen = Math.max(t1.length, t2.length);
+                let sim = ((maxLen - dist) / maxLen * 100).toFixed(1);
+                exibirRespostaJarvis(`📊 Similaridade: ${sim}% (distância ${dist})`);
+            } else exibirRespostaJarvis("Use: comparar textos [texto1] [texto2]");
+            return;
+        }
+        // Gravação de voz
+        if (cmd === 'gravar nota') {
+            if (!navigator.mediaDevices) { exibirRespostaJarvis("Não suportado."); return; }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `nota_voz_${Date.now()}.wav`;
+                    a.click();
+                    exibirRespostaJarvis("🎙️ Gravação salva.");
+                    stream.getTracks().forEach(t => t.stop());
+                };
+                mediaRecorder.start();
+                exibirRespostaJarvis("🔴 Gravando... Diga 'parar gravação'.");
+            }).catch(err => exibirRespostaJarvis(`Erro: ${err.message}`));
+            return;
+        }
+        if (cmd === 'parar gravação' && mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            exibirRespostaJarvis("⏹️ Gravação finalizada.");
+            return;
+        }
+        // Recomendação de filme (backend)
+        if (cmd === 'recomendar filme') {
+            exibirRespostaJarvis("🎬 Buscando recomendação...", false);
+            let resp = await fetch(`${BACKEND_URL}api/recomendar_filme`);
+            let data = await resp.json();
+            exibirRespostaJarvis(data.resposta);
+            return;
+        }
+        // Rastreamento de encomendas
+        if (cmd.startsWith('rastrear ')) {
+            let codigo = texto.replace(/rastrear /i,"").trim();
+            if(!codigo) { exibirRespostaJarvis("Informe o código."); return; }
+            exibirRespostaJarvis(`📦 Rastreando...`, false);
+            let resp = await fetch(`${BACKEND_URL}api/rastrear`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ codigo }) });
+            let data = await resp.json();
+            exibirRespostaJarvis(data.resposta);
+            return;
+        }
+        // Gerador de currículo
+        if (cmd === 'criar curriculo') {
+            exibirRespostaJarvis("📄 Envie suas informações no formato: nome, email, telefone, experiência, educação. Ex: criar curriculo João; joao@email.com; 99999; Estagiário em TI; Ensino Médio completo");
+            return;
+        }
+        if (cmd.startsWith('criar curriculo ')) {
+            let partes = texto.replace(/criar curriculo /i,"").split(';').map(p=>p.trim());
+            if(partes.length>=5){
+                let [nome, email, telefone, experiencia, educacao] = partes;
+                let resp = await fetch(`${BACKEND_URL}api/gerar_curriculo`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nome, email, telefone, experiencia, educacao }) });
+                if(resp.ok){
+                    let blob = await resp.blob();
+                    let a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `curriculo_${nome}.pdf`;
+                    a.click();
+                    exibirRespostaJarvis("✅ Currículo gerado! Download iniciado.");
+                } else exibirRespostaJarvis("❌ Erro ao gerar currículo.");
+            } else exibirRespostaJarvis("Formato: criar curriculo Nome; email; telefone; experiência; educação");
+            return;
+        }
+
+        // Fallback offline
         let respostaOffline = processarComandoOffline(texto);
         if (respostaOffline) { exibirRespostaJarvis(respostaOffline, true, true); return; }
 
-        // ---- IA (último recurso) ----
+        // IA
         if (modoAviao) exibirRespostaJarvis("✈️ Modo avião ativo.");
         else { historicoConversa.push({ role: "user", content: texto }); await chamarIA(); }
     }
@@ -648,19 +664,10 @@ document.addEventListener('DOMContentLoaded', () => {
             exibirRespostaJarvis(`📷 Texto extraído:\n${text.trim() || "Nenhum texto"}`);
         } catch(e){ exibirRespostaJarvis(`❌ Erro: ${e.message}`); }
     }
-    function abrirCameraOCR() {
-        let input = document.createElement('input');
-        input.type='file'; input.accept='image/*';
-        input.onchange = async e => { if(e.target.files[0]) await realizarOCR(e.target.files[0]); };
-        input.click();
-    }
+    function abrirCameraOCR() { let input = document.createElement('input'); input.type='file'; input.accept='image/*'; input.onchange = async e => { if(e.target.files[0]) await realizarOCR(e.target.files[0]); }; input.click(); }
     async function abrirCameraQR() {
-        const video = document.createElement('video');
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.innerHTML = `<div class="modal-content"><h3>📱 Aponte para o QR Code</h3><video id="qrVideo" autoplay playsinline></video><br><button id="closeQRModal">Fechar</button></div>`;
+        const video = document.createElement('video'), canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+        const modal = document.createElement('div'); modal.className = 'modal'; modal.innerHTML = `<div class="modal-content"><h3>📱 Aponte para o QR Code</h3><video id="qrVideo" autoplay playsinline></video><br><button id="closeQRModal">Fechar</button></div>`;
         document.body.appendChild(modal);
         const videoElement = modal.querySelector('#qrVideo');
         let stream = null;
@@ -670,8 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await videoElement.play();
             const tick = () => {
                 if(videoElement.readyState === videoElement.HAVE_ENOUGH_DATA){
-                    canvas.width = videoElement.videoWidth;
-                    canvas.height = videoElement.videoHeight;
+                    canvas.width = videoElement.videoWidth; canvas.height = videoElement.videoHeight;
                     ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
                     let code = jsQR(ctx.getImageData(0,0,canvas.width,canvas.height).data, canvas.width, canvas.height);
                     if(code){
@@ -686,10 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             tick();
             modal.querySelector('#closeQRModal').onclick = () => { if(stream) stream.getTracks().forEach(t=>t.stop()); modal.remove(); };
-        } catch(err){
-            modal.innerHTML = `<div class="modal-content"><p>❌ Erro câmera: ${err.message}</p><button id="closeQRModal">Fechar</button></div>`;
-            modal.querySelector('#closeQRModal').onclick = () => modal.remove();
-        }
+        } catch(err){ modal.innerHTML = `<div class="modal-content"><p>❌ Erro câmera: ${err.message}</p><button id="closeQRModal">Fechar</button></div>`; modal.querySelector('#closeQRModal').onclick = () => modal.remove(); }
     }
     function salvarConversaPDF() {
         const { jsPDF } = window.jspdf;
@@ -712,7 +715,6 @@ document.addEventListener('DOMContentLoaded', () => {
     userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
     fileInput.addEventListener('change', arquivoSelecionado);
 
-    // Sidebar
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
     const closeSidebar = document.getElementById('closeSidebar');
@@ -721,7 +723,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if(closeSidebar && sidebar) closeSidebar.addEventListener('click', ()=>{ sidebar.classList.remove('open'); overlay.classList.remove('active'); });
     if(overlay) overlay.addEventListener('click', ()=>{ sidebar.classList.remove('open'); overlay.classList.remove('active'); });
 
-    // Botões das abas
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', ()=>{
             const tabId = btn.getAttribute('data-tab');
@@ -732,22 +733,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Botões específicos
     document.getElementById('exportDiarioBtn')?.addEventListener('click', ()=>inserirComando('exportar diario'));
     document.getElementById('exportFlashcardsBtn')?.addEventListener('click', ()=>inserirComando('exportar flashcards'));
-    document.getElementById('exportGastosBtn')?.addEventListener('click', ()=>inserirComando('exportar tudo'));
+    document.getElementById('exportGastosBtn')?.addEventListener('click', ()=>inserirComando('relatório de gastos'));
     document.getElementById('salvarConversaBtn')?.addEventListener('click', salvarConversaPDF);
     document.getElementById('limparConversaBtn')?.addEventListener('click', ()=>{ if(confirm("Limpar conversa?")){ historicoConversa=[]; localStorage.removeItem('jarvis_historico'); location.reload(); } });
     document.getElementById('ocrImageBtn')?.addEventListener('click', abrirCameraOCR);
     document.getElementById('qrScanBtn')?.addEventListener('click', abrirCameraQR);
     document.getElementById('exportBackupBtn')?.addEventListener('click', ()=>inserirComando('exportar tudo'));
     document.getElementById('importBackupBtn')?.addEventListener('click', ()=>inserirComando('importar backup'));
-    document.getElementById('clearAllDataBtn')?.addEventListener('click', ()=>{
-        if(confirm("Isso apagará TODOS os dados (diário, flashcards, gastos, configurações). Continuar?")){
-            localStorage.clear();
-            location.reload();
-        }
-    });
+    document.getElementById('clearAllDataBtn')?.addEventListener('click', ()=>{ if(confirm("Apagar TODOS os dados?")){ localStorage.clear(); location.reload(); } });
     document.querySelectorAll('.theme-btn').forEach(btn=>{
         btn.addEventListener('click',()=>{
             let theme = btn.getAttribute('data-theme');
@@ -758,7 +753,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Microfone
     if(window.SpeechRecognition || window.webkitSpeechRecognition){
         const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
         reconhecimento = new SpeechRecognitionAPI();
@@ -772,12 +766,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Carregar histórico
     let saved = localStorage.getItem('jarvis_historico');
     if(saved) try{ historicoConversa = JSON.parse(saved); } catch(e){}
     atualizarEstatisticas();
-    // Preencher datalist com comandos
-    let comandos = ["continue","leia","próxima página","criar pdf sobre","criar audio sobre","criar slides sobre","clima em","massa molar de","rode python:","rode js:","encurtar","converter","gerar senha","traduzir","adicionar gasto","resumo gastos","últimas notícias","horóscopo","tabuada do","imc","juros compostos","pomodoro","tela cheia","vibrar","modo avião","modo normal","gerar qr","resumir texto","citação","fato científico","email temporário","cronograma de estudos","força da senha","falar","humor hoje","combustível","converter tempo","media","nota","traduzir frase","palavra do dia","modo foco ativar","histórico de","exportar tudo","importar backup","tema azul","tema verde","tema padrão"];
-    comandos.forEach(c=>{ let opt = document.createElement('option'); opt.value=c; commandsDatalist.appendChild(opt); });
-    exibirRespostaJarvis("✅ JARVIS 4.0 com nova interface e mais de 80 comandos integrados! Use as abas para navegar.", false);
+
+    let comandos = ["continue","leia","próxima página","criar pdf sobre","criar audio sobre","criar slides sobre","clima em","massa molar de","rode python:","rode js:","encurtar","converter","gerar senha","traduzir","adicionar gasto","resumo gastos","relatório de gastos","últimas notícias","horóscopo","tabuada do","imc","juros compostos","pomodoro","tela cheia","vibrar","modo avião","modo normal","gerar qr","resumir texto","citação","fato científico","email temporário","cronograma de estudos","força da senha","falar","humor hoje","combustível","converter tempo","media","nota","traduzir frase","palavra do dia","modo foco ativar","histórico de","exportar tudo","importar backup","tema azul","tema verde","tema padrão","receita","timer","salvar senha","mostrar senhas","adicionar evento","eventos hoje","eventos amanhã","comparar textos","gravar nota","parar gravação","recomendar filme","rastrear","criar curriculo"];
+    comandos.forEach(c=>{ let opt = document.createElement('option'); opt.value=c; document.getElementById('commands-list')?.appendChild(opt); });
+    exibirRespostaJarvis("✅ JARVIS 5.0 ativado! Mais de 100 comandos. Divirta-se!", false);
 });
