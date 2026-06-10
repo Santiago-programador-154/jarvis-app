@@ -2,57 +2,63 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS - CORE CONSOLE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>JARVIS - CORE TOTAL</title>
     <link rel="stylesheet" href="style.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="manifest.json">
 </head>
 <body>
-
     <div class="app-container">
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>JARVIS OS</h2>
-                <div class="status-online">● CORE HÍBRIDO ATIVO</div>
+                <div class="status-online">● CORE TOTAL ATIVO</div>
             </div>
-            
             <div class="sidebar-section">
-                <h3><span class="icon">📂</span> Módulos Integrados</h3>
-                <div class="module-card" id="pdfStatus">PDF: Inativo</div>
-                <div class="module-card">Diário Local Sincronizado</div>
-                <div class="module-card">Flashcards Ativos</div>
+                <h3><span class="icon">📂</span> Módulos</h3>
+                <div class="module-card" id="pdfStatus">📄 PDF: Inativo</div>
+                <div class="module-card" id="batteryStatus">🔋 Bateria: --</div>
+                <div class="module-card">📝 Diário Local</div>
+                <div class="module-card">🎴 Flashcards</div>
+                <button id="saveChatBtn" class="btn-clear" style="margin-top:8px;">📄 Salvar Conversa em PDF</button>
+                <button id="ocrImageBtn" class="btn-clear" style="margin-top:8px;">📷 Ler Texto de Imagem</button>
+                <button id="qrScanBtn" class="btn-clear" style="margin-top:8px;">📱 Escanear QR Code</button>
             </div>
-
             <div class="sidebar-section">
-                <h3><span class="icon">🧠</span> Memória de Sessão</h3>
-                <p class="sidebar-text">O histórico de conversa mantém a racionalização contínua ativada.</p>
-                <button class="btn-clear" onclick="window.location.reload()">Limpar Sessão (Reset)</button>
+                <h3><span class="icon">🧠</span> Comandos Rápidos</h3>
+                <p class="sidebar-text">
+                    • PDF: continue, leia, pausar, próxima página, página anterior, ir para página X, modo especialista<br>
+                    • lembre-me de [tarefa] às [hh:mm]<br>
+                    • conte uma piada<br>
+                    • salvar conversa<br>
+                    • bateria
+                </p>
+                <button class="btn-clear" onclick="window.location.reload()">Limpar Sessão</button>
             </div>
         </aside>
-
         <main class="main-chat">
             <div class="chat-container" id="chatBox">
                 <div class="balao jarvis-msg">
                     <span class="sender-name">JARVIS</span>
-                    Sistemas recalibrados, senhor. Racionalização fluida e histórico de sessão integrados. O que vamos analisar agora?
+                    Sistemas recalibrados. Agora com OCR, QR Code, lembretes e leitura fatiada de PDF. O que vamos fazer?
                 </div>
             </div>
-
             <div class="input-container">
                 <div class="input-wrapper">
                     <label for="fileInput" class="btn-icon">📎</label>
-                    <input type="file" id="fileInput" accept="application/pdf,image/*" style="display: none;" onchange="arquivoSelecionado()">
-                    <input type="text" id="userInput" placeholder="Forneça instruções ou comandos..." autocomplete="off">
+                    <input type="file" id="fileInput" accept="application/pdf,image/*" style="display: none;">
+                    <input type="text" id="userInput" placeholder="Fale ou digite..." autocomplete="off">
                 </div>
                 <button class="btn-round" id="micBtn" onclick="alternarVoz()">🎙️</button>
                 <button class="btn-round" id="sendBtn" onclick="enviarMensagem()">➤</button>
             </div>
         </main>
     </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
