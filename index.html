@@ -3,38 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS - CHAT</title>
+    <title>JARVIS - CORE CONSOLE</title>
     <link rel="stylesheet" href="style.css">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
-    <div class="header-status">
-        <h2>JARVIS OS</h2>
-        <div class="status-online">● híbrido ativo</div>
-    </div>
-
-    <div class="chat-container" id="chatBox">
-        <div class="balao jarvis-msg">
-            <span class="sender-name">JARVIS</span>
-            Sistema online, senhor. Como posso ajudar hoje?
-        </div>
-    </div>
-
-    <div class="input-container">
-        <div class="input-wrapper">
-            <label for="fileInput" class="btn-icon" style="cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0; padding: 0 10px;">📎</label>
-            <input type="file" id="fileInput" accept="application/pdf,image/*" style="display: none;" onchange="arquivoSelecionado()">
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>JARVIS OS</h2>
+                <div class="status-online">● CORE HÍBRIDO ATIVO</div>
+            </div>
             
-            <input type="text" id="userInput" placeholder="Mensagem" autocomplete="off">
-        </div>
-        
-        <button class="btn-round" id="micBtn" onclick="alternarVoz()">🎙️</button>
-        
-        <button class="btn-round" id="sendBtn" onclick="enviarMensagem()">➤</button>
+            <div class="sidebar-section">
+                <h3><span class="icon">📂</span> Módulos Integrados</h3>
+                <div class="module-card" id="pdfStatus">PDF: Inativo</div>
+                <div class="module-card">Diário Local Sincronizado</div>
+                <div class="module-card">Flashcards Ativos</div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3><span class="icon">🧠</span> Memória de Sessão</h3>
+                <p class="sidebar-text">O histórico de conversa mantém a racionalização contínua ativada.</p>
+                <button class="btn-clear" onclick="window.location.reload()">Limpar Sessão (Reset)</button>
+            </div>
+        </aside>
+
+        <main class="main-chat">
+            <div class="chat-container" id="chatBox">
+                <div class="balao jarvis-msg">
+                    <span class="sender-name">JARVIS</span>
+                    Sistemas recalibrados, senhor. Racionalização fluida e histórico de sessão integrados. O que vamos analisar agora?
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <label for="fileInput" class="btn-icon">📎</label>
+                    <input type="file" id="fileInput" accept="application/pdf,image/*" style="display: none;" onchange="arquivoSelecionado()">
+                    <input type="text" id="userInput" placeholder="Forneça instruções ou comandos..." autocomplete="off">
+                </div>
+                <button class="btn-round" id="micBtn" onclick="alternarVoz()">🎙️</button>
+                <button class="btn-round" id="sendBtn" onclick="enviarMensagem()">➤</button>
+            </div>
+        </main>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
