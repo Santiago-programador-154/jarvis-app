@@ -1,4 +1,4 @@
-// ==================== JARVIS - VERSÃO CORRIGIDA ====================
+// ==================== JARVIS - VERSÃO MOBILE OTIMIZADA ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JARVIS iniciado');
 
@@ -32,8 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let modoEspecialista = false;
     let modoAviao = false;
 
-    let cronometroInicio = null;
-    let cronometroIntervalo = null;
     let mediaRecorder = null;
     let audioChunks = [];
 
@@ -190,27 +188,40 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
-    // ==================== IA (BACKEND) ====================
+    // ==================== IA (BACKEND) COM TIMEOUT E TRATAMENTO MOBILE ====================
     async function chamarIA() {
         if (modoAviao) { exibirRespostaJarvis("✈️ Modo avião ativo. Use comandos offline."); return; }
         const typing = document.getElementById('typingIndicator');
         if (typing) typing.style.display = 'flex';
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+        
         try {
             const res = await fetch(`${BACKEND_URL}api/comando`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ historico: historicoConversa.slice(-20), modo_especialista: modoEspecialista })
+                body: JSON.stringify({ historico: historicoConversa.slice(-20), modo_especialista: modoEspecialista }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             const data = await res.json();
             if (typing) typing.style.display = 'none';
             exibirRespostaJarvis(data.resposta || "Sem resposta.");
         } catch(e) {
+            clearTimeout(timeoutId);
             if (typing) typing.style.display = 'none';
-            exibirRespostaJarvis("Erro de conexão com o servidor.");
+            let erroMsg = "Erro de conexão. ";
+            if (e.name === 'AbortError') {
+                erroMsg += "Servidor demorou muito para responder (pode estar adormecido). Tente novamente em alguns segundos.";
+            } else {
+                erroMsg += `Detalhe: ${e.message}`;
+            }
+            exibirRespostaJarvis(erroMsg);
         }
     }
 
-    // ==================== FUNÇÕES AUXILIARES NOVAS ====================
+    // ==================== FUNÇÕES AUXILIARES ====================
     function levenshtein(a, b) {
         const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
         for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
@@ -224,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return matrix[b.length][a.length];
     }
 
-    // ==================== ENVIO PRINCIPAL ====================
+    // ==================== ENVIO PRINCIPAL (com suporte a touch) ====================
     window.inserirComando = function(cmd) { userInput.value = cmd; enviarMensagem(); };
 
     async function enviarMensagem() {
@@ -234,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
         userInput.value = '';
         const cmd = texto.toLowerCase();
 
-        // ---------- COMANDOS EXISTENTES (compactados - apenas os essenciais) ----------
+        // --- Comandos principais (resumidos – você pode manter os seus aqui) ---
         if (cmd.startsWith('aprender ')) {
             let resto = texto.substring(9).trim();
             let dp = resto.indexOf(':');
@@ -255,16 +266,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (cmd === 'continue' || cmd === 'continuar') { await enviarFatiaPDF(false); return; }
             if (cmd === 'leia') { await enviarFatiaPDF(true); return; }
         }
-        // ... (mantenha os outros comandos como estavam no seu script original, apenas remova as partes que usam unescape/escape)
-        // Para evitar duplicação enorme, mantenha o restante do seu código original,
-        // mas substitua a lógica de senhas (salvar senha / mostrar senhas) pelo seguinte:
-
+        // Comando para salvar senha (corrigido)
         if (cmd.startsWith('salvar senha ')) {
             let partes = texto.match(/salvar senha (.+?)\s+(.+?)\s+(.+)/i);
             if(partes){
                 let site=partes[1], usuario=partes[2], senha=partes[3];
                 let cofre = JSON.parse(localStorage.getItem('jarvis_cofre')) || [];
-                // Usando btoa com encodeURIComponent (seguro)
                 let dados = JSON.stringify({ site, usuario, senha });
                 let encrypted = btoa(encodeURIComponent(dados));
                 cofre.push(encrypted);
@@ -289,8 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return;
         }
-
-        // ... adicione aqui os demais comandos (clima, notícias, etc) conforme seu código original
+        // Adicione aqui os outros comandos (clima, notícias, etc.) conforme seu código original
 
         // Fallback offline
         let respostaOffline = processarComandoOffline(texto);
@@ -373,8 +379,9 @@ document.addEventListener('DOMContentLoaded', function() {
         exibirRespostaJarvis("Conversa salva em PDF.");
     }
 
-    // ==================== EVENTOS E UI ====================
+    // ==================== EVENTOS E UI (com suporte a touch) ====================
     sendBtn.addEventListener('click', enviarMensagem);
+    sendBtn.addEventListener('touchend', (e) => { e.preventDefault(); enviarMensagem(); });
     userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
     fileInput.addEventListener('change', arquivoSelecionado);
 
@@ -436,4 +443,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let comandos = ["continue","leia","próxima página","criar pdf sobre","criar audio sobre","criar slides sobre","clima em","massa molar de","rode python:","rode js:","encurtar","converter","gerar senha","traduzir","adicionar gasto","resumo gastos","relatório de gastos","últimas notícias","horóscopo","tabuada do","imc","juros compostos","pomodoro","tela cheia","vibrar","modo avião","modo normal","gerar qr","resumir texto","citação","fato científico","email temporário","cronograma de estudos","força da senha","falar","humor hoje","combustível","converter tempo","media","nota","traduzir frase","palavra do dia","modo foco ativar","histórico de","exportar tudo","importar backup","tema azul","tema verde","tema padrão","receita","timer","salvar senha","mostrar senhas","adicionar evento","eventos hoje","eventos amanhã","comparar textos","gravar nota","parar gravação","recomendar filme","rastrear","criar curriculo"];
     comandos.forEach(c=>{ let opt = document.createElement('option'); opt.value=c; document.getElementById('commands-list')?.appendChild(opt); });
     exibirRespostaJarvis("✅ JARVIS 5.0 ativado! Mais de 100 comandos. Divirta-se!", false);
+    
+    // Heartbeat: acorda o backend
+    fetch(`${BACKEND_URL}api/comando`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ historico: [{role:"user", content:"ping"}] })
+    }).catch(e => console.log("Wake-up falhou"));
 });
