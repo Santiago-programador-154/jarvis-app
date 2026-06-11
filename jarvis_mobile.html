@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>JARVIS Mobile - Offline Total</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #f0f0f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #14141c;
+            padding: 16px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.3rem;
+            border-bottom: 1px solid #2a2a3a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 { font-size: 1.2rem; color: #00f0ff; }
+        .status { font-size: 0.7rem; background: #1e1e2a; padding: 4px 10px; border-radius: 20px; }
+        .chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            display: flex;
+            gap: 8px;
+            max-width: 85%;
+        }
+        .user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            background: #1e1e2a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        .bubble {
+            background: #1a1a2a;
+            padding: 8px 12px;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+        }
+        .user .bubble {
+            background: #2a2a3a;
+            border-bottom-right-radius: 4px;
+            border-bottom-left-radius: 18px;
+        }
+        .name {
+            font-size: 0.65rem;
+            color: #00f0ff;
+            margin-bottom: 2px;
+        }
+        .user .name { color: #aaa; text-align: right; }
+        .input-area {
+            padding: 12px;
+            background: #14141c;
+            border-top: 1px solid #2a2a3a;
+            display: flex;
+            gap: 8px;
+        }
+        .input-area input {
+            flex: 1;
+            background: #1e1e2a;
+            border: none;
+            padding: 12px;
+            border-radius: 30px;
+            color: white;
+            font-size: 1rem;
+        }
+        .input-area button {
+            background: #00f0ff;
+            border: none;
+            width: 48px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        button:active { opacity: 0.7; }
+        .footer-buttons {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #0a0a0f;
+            overflow-x: auto;
+        }
+        .cmd-btn {
+            background: #1e1e2a;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+        .typing {
+            font-size: 0.7rem;
+            color: #888;
+            padding-left: 16px;
+            margin-top: -8px;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>⚡ JARVIS OFFLINE</h1>
+    <div class="status">🔵 100% local</div>
+</div>
+<div class="chat" id="chatBox">
+    <div class="message">
+        <div class="avatar">🤖</div>
+        <div class="bubble"><div class="name">JARVIS</div>✅ Modo offline ativo. Comandos: horas, piada, diário, gastos, flashcards, tabuada, IMC, etc.</div>
+    </div>
+</div>
+<div class="footer-buttons" id="cmdButtons">
+    <!-- comandos rápidos serão inseridos via js -->
+</div>
+<div class="input-area">
+    <input type="text" id="userInput" placeholder="Digite algo..." autocomplete="off">
+    <button id="sendBtn">➤</button>
+</div>
+<div class="typing" id="typingIndicator"></div>
+
+<script>
+    // ==================== JARVIS MOBILE TOTALMENTE OFFLINE ====================
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const typingDiv = document.getElementById('typingIndicator');
+
+    // Banco de dados local
+    let db = {
+        diario: [],
+        gastos: [],
+        flashcards: [{q: "Capital do Brasil?", r: "Brasília"}],
+        senhas: []
+    };
+    // Carregar do localStorage
+    try {
+        const saved = localStorage.getItem('jarvis_mobile_db');
+        if (saved) db = JSON.parse(saved);
+    } catch(e) {}
+
+    function salvarDB() {
+        localStorage.setItem('jarvis_mobile_db', JSON.stringify(db));
+    }
+
+    // Comandos internos
+    function processarComando(texto) {
+        const cmd = texto.toLowerCase().trim();
+        
+        // Horas/data
+        if (cmd === 'que horas são') return new Date().toLocaleTimeString();
+        if (cmd === 'que dia é hoje') return new Date().toLocaleDateString();
+        
+        // Piada
+        const piadas = [
+            "Por que o programador foi ao mercado? Por bytes!",
+            "O que o zero disse ao oito? Bonito cinto!",
+            "Qual o cúmulo do preguiçoso? Ser enterrado numa montanha de documentos."
+        ];
+        if (cmd === 'conte uma piada') return piadas[Math.floor(Math.random() * piadas.length)];
+        
+        // Diário
+        if (cmd.startsWith('registrar diário ')) {
+            let nota = texto.substring(16).trim();
+            if (!nota) return "Escreva algo após 'registrar diário'";
+            db.diario.push(`${new Date().toLocaleDateString()}: ${nota}`);
+            salvarDB();
+            return "📓 Diário registrado.";
+        }
+        if (cmd === 'ler diário') {
+            if (db.diario.length === 0) return "Diário vazio.";
+            return "📖 Diário:\n" + db.diario.join("\n");
+        }
+        
+        // Gastos
+        if (cmd.startsWith('adicionar gasto ')) {
+            let partes = texto.match(/adicionar gasto (.+?)\s+(\d+(?:\.\d+)?)/i);
+            if (partes) {
+                db.gastos.push({ cat: partes[1], val: parseFloat(partes[2]), data: new Date().toISOString() });
+                salvarDB();
+                return `💰 Gasto: ${partes[1]} R$ ${parseFloat(partes[2]).toFixed(2)}`;
+            }
+            return "Formato: adicionar gasto [categoria] [valor]";
+        }
+        if (cmd === 'resumo gastos') {
+            let total = db.gastos.reduce((s,g) => s + g.val, 0);
+            let cats = {};
+            db.gastos.forEach(g => cats[g.cat] = (cats[g.cat]||0) + g.val);
+            let resumo = `💰 Total: R$ ${total.toFixed(2)}\nPor categoria:\n` + Object.entries(cats).map(([c,v]) => `  ${c}: R$ ${v.toFixed(2)}`).join("\n");
+            return resumo;
+        }
+        
+        // Flashcards
+        if (cmd === 'flashcard') {
+            let card = db.flashcards[Math.floor(Math.random() * db.flashcards.length)];
+            return `📇 ${card.q} – (responda com "resposta: ${card.q}")`;
+        }
+        if (cmd.startsWith('resposta: ')) {
+            let pergunta = cmd.substring(9).trim();
+            let card = db.flashcards.find(c => c.q.toLowerCase() === pergunta.toLowerCase());
+            if (card) return `✅ Resposta: ${card.r}`;
+            else return "Nenhum flashcard com essa pergunta.";
+        }
+        if (cmd.startsWith('criar flashcard ')) {
+            let resto = texto.substring(16).trim();
+            let sep = resto.indexOf('=');
+            if (sep > 0) {
+                let q = resto.substring(0, sep).trim();
+                let r = resto.substring(sep+1).trim();
+                db.flashcards.push({q, r});
+                salvarDB();
+                return `📌 Flashcard criado: ${q} = ${r}`;
+            }
+            return "Formato: criar flashcard pergunta = resposta";
+        }
+        
+        // Tabuada
+        if (cmd.startsWith('tabuada do ')) {
+            let n = parseInt(cmd.replace('tabuada do','').trim());
+            if (!isNaN(n)) {
+                let linhas = [];
+                for (let i=1; i<=10; i++) linhas.push(`${n} x ${i} = ${n*i}`);
+                return `📐 Tabuada do ${n}:\n` + linhas.join("\n");
+            }
+            return "Digite: tabuada do [número]";
+        }
+        
+        // IMC
+        if (cmd.startsWith('imc ')) {
+            let m = texto.match(/imc\s+peso\s+(\d+(?:\.\d+)?)\s+altura\s+(\d+(?:\.\d+)?)/i);
+            if (m) {
+                let peso = parseFloat(m[1]), altura = parseFloat(m[2]);
+                let imc = peso / (altura*altura);
+                let classif = imc<18.5?"Abaixo":imc<25?"Normal":imc<30?"Sobrepeso":imc<35?"Obesidade I":imc<40?"Obesidade II":"Obesidade III";
+                return `📊 IMC = ${imc.toFixed(2)} - ${classif}`;
+            }
+            return "Formato: imc peso 70 altura 1.75";
+        }
+        
+        // Calculadora simples
+        try {
+            let math = texto.match(/[\d\s\+\-\*\/\(\)\.\,\^\%]+/);
+            if (math && !/[a-zA-Z]/.test(math[0])) {
+                let expr = math[0].replace(/,/g,'.').replace(/\^/g,'**');
+                let res = eval(expr);
+                return `🧮 Resultado: ${res}`;
+            }
+        } catch(e) {}
+        
+        // Senhas (cofre simples)
+        if (cmd.startsWith('salvar senha ')) {
+            let partes = texto.match(/salvar senha (.+?)\s+(.+?)\s+(.+)/i);
+            if (partes) {
+                db.senhas.push({site: partes[1], user: partes[2], pass: partes[3]});
+                salvarDB();
+                return `🔐 Senha salva para ${partes[1]}`;
+            }
+            return "Formato: salvar senha [site] [usuario] [senha]";
+        }
+        if (cmd === 'mostrar senhas') {
+            if (db.senhas.length === 0) return "Nenhuma senha salva.";
+            let lista = "🔐 Senhas:\n";
+            db.senhas.forEach((s,i) => lista += `${i+1}. ${s.site} - ${s.user}\n`);
+            return lista;
+        }
+        
+        // Ajuda
+        if (cmd === 'ajuda' || cmd === 'comandos') {
+            return `📚 COMANDOS DISPONÍVEIS:
+- que horas são / que dia é hoje
+- conte uma piada
+- registrar diário [texto]
+- ler diário
+- adicionar gasto [cat] [valor]
+- resumo gastos
+- flashcard
+- criar flashcard pergunta = resposta
+- resposta: [pergunta]
+- tabuada do [número]
+- imc peso [kg] altura [m]
+- calcular [expressão] (ex: 2+2*3)
+- salvar senha [site] [user] [senha]
+- mostrar senhas
+- ajuda`;
+        }
+        
+        return null; // comando não reconhecido
+    }
+    
+    function exibirMensagem(remetente, texto, isHtml = false) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${remetente === 'user' ? 'user' : ''}`;
+        const avatar = remetente === 'user' ? '👤' : '🤖';
+        const nome = remetente === 'user' ? 'Você' : 'JARVIS';
+        const conteudo = isHtml ? texto : texto.replace(/\n/g, '<br>');
+        msgDiv.innerHTML = `
+            <div class="avatar">${avatar}</div>
+            <div class="bubble">
+                <div class="name">${nome}</div>
+                <div>${conteudo}</div>
+            </div>
+        `;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    
+    async function enviarMensagem() {
+        const texto = userInput.value.trim();
+        if (!texto) return;
+        exibirMensagem('user', texto);
+        userInput.value = '';
+        typingDiv.innerText = 'JARVIS está pensando...';
+        
+        // Pequeno delay para simular digitação
+        await new Promise(r => setTimeout(r, 100));
+        
+        let resposta = processarComando(texto);
+        if (resposta === null) {
+            resposta = "❓ Comando não reconhecido. Digite 'ajuda' para ver os comandos disponíveis.";
+        }
+        typingDiv.innerText = '';
+        exibirMensagem('jarvis', resposta, true);
+    }
+    
+    // Eventos
+    sendBtn.addEventListener('click', enviarMensagem);
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
+    
+    // Botões de comandos rápidos
+    const botoes = [
+        "que horas são", "conte uma piada", "resumo gastos", "flashcard", "ajuda"
+    ];
+    const container = document.getElementById('cmdButtons');
+    botoes.forEach(cmd => {
+        const btn = document.createElement('button');
+        btn.textContent = cmd;
+        btn.className = 'cmd-btn';
+        btn.onclick = () => {
+            userInput.value = cmd;
+            enviarMensagem();
+        };
+        container.appendChild(btn);
+    });
+    
+    // Mensagem inicial adicional
+    exibirMensagem('jarvis', '⚡ JARVIS offline 100% funcional. Teste "que horas são" ou "ajuda".');
+</script>
+</body>
+</html>
